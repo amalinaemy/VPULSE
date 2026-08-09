@@ -1,0 +1,24 @@
+{
+  "version": 2,
+  "dgSpecHash": "yRC6VK0Uskg=",
+  "success": true,
+  "projectFilePath": "/Users/amalina/Documents/Projects/V-PULSE/backend/Vpulse.Api/Vpulse.Api.csproj",
+  "expectedPackageFiles": [
+    "/Users/amalina/.nuget/packages/microsoft.aspnetcore.openapi/10.0.10/microsoft.aspnetcore.openapi.10.0.10.nupkg.sha512",
+    "/Users/amalina/.nuget/packages/microsoft.openapi/2.0.0/microsoft.openapi.2.0.0.nupkg.sha512"
+  ],
+  "logs": [
+    {
+      "code": "NU1903",
+      "level": "Warning",
+      "message": "Package 'Microsoft.OpenApi' 2.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-v5pm-xwqc-g5wc",
+      "projectPath": "/Users/amalina/Documents/Projects/V-PULSE/backend/Vpulse.Api/Vpulse.Api.csproj",
+      "warningLevel": 1,
+      "filePath": "/Users/amalina/Documents/Projects/V-PULSE/backend/Vpulse.Api/Vpulse.Api.csproj",
+      "libraryId": "Microsoft.OpenApi",
+      "targetGraphs": [
+        "net10.0"
+      ]
+    }
+  ]
+}

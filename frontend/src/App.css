@@ -1,0 +1,72 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f5f7fa;
+    color: #1f2937;
+}
+
+.app {
+    min-height: 100vh;
+}
+
+.header {
+    background: #111827;
+    color: white;
+    padding: 24px 40px;
+}
+
+.header h1 {
+    margin: 0;
+    font-size: 28px;
+}
+
+.header span {
+    color: #9ca3af;
+    font-size: 14px;
+}
+
+.main {
+    padding: 40px;
+}
+
+.welcome {
+    margin-bottom: 30px;
+}
+
+.welcome h2 {
+    margin-bottom: 8px;
+}
+
+.status-card {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 600px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+}
+
+.status-success {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.status-dot {
+    width: 12px;
+    height: 12px;
+    background: #22c55e;
+    border-radius: 50%;
+}
+
+.status-success p {
+    margin: 5px 0 0;
+    color: #6b7280;
+}
+
+.status-error {
+    color: #dc2626;
+}
