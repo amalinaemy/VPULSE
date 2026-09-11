@@ -1,0 +1,17 @@
+# Generated files
+.DS_Store
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+**/dist-ssr/
+*.log
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+*.local
+*.pfx
+*.p12
+*.pem
