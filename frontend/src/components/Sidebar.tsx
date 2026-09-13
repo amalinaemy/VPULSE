@@ -27,7 +27,6 @@ export function Sidebar({ activeView, isOpen, onClose, onViewChange }: SidebarPr
                 <div className="subnav">
                     <NavButton active={activeView === "executive"} onClick={() => onViewChange("executive")}>Executive </NavButton>
                     <NavButton active={activeView === "engineer"} onClick={() => onViewChange("engineer")}>Engineer </NavButton>
-                    <NavButton active={activeView === "engineer-2"} onClick={() => onViewChange("engineer-2")}>Engineer 2</NavButton>
                     <NavButton active={activeView === "field"} onClick={() => onViewChange("field")}>Field Team </NavButton>
                 </div>
                 <br />

@@ -25,7 +25,7 @@ import "./App.css";
 const workFormView = "work-form" as const;
 
 function App() {
-
+    
     const [activeView, setActiveView] = useState<View>("home");
 
     const [theme, setTheme] = useState<"dark" | "light">(
@@ -212,18 +212,6 @@ function App() {
                 return (
                     <EngineerPage
                         key="engineer"
-                        poles={poles}
-                        isLoading={isLoadingPoles}
-                        error={polesError}
-                    />
-                );
-
-            case "engineer-2":
-                return (
-                    <EngineerPage
-                        key="engineer-2"
-                        viewLabel="Engineer 2 View"
-                        hierarchyMode
                         poles={poles}
                         isLoading={isLoadingPoles}
                         error={polesError}

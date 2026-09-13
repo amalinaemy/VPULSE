@@ -111,7 +111,7 @@ export function EngineerHierarchyTable({ poles, isLoading, error, targetRequest 
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, hierarchySheet, "Hierarchy Details");
         XLSX.utils.book_append_sheet(workbook, candidateSheet, "Candidate List");
-        XLSX.writeFile(workbook, `engineer-2-candidates-${new Date().toISOString().slice(0, 10)}.xlsx`, { compression: true });
+        XLSX.writeFile(workbook, `engineer-candidates-${new Date().toISOString().slice(0, 10)}.xlsx`, { compression: true });
     }
 
     return <section className="engineer-panel hierarchy-panel" id="pole-risk-records">
