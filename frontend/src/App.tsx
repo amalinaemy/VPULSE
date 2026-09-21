@@ -6,6 +6,7 @@ import { Sidebar } from "./components/Sidebar";
 import { EngineerPage } from "./pages/EngineerPage";
 import { FieldTeamPage } from "./pages/FieldTeamPage";
 import { HomePage } from "./pages/HomePage";
+import { ExecutivePage } from "./pages/ExecutivePage";
 import { OverviewPage } from "./pages/OverviewPage";
 import { WorkForm } from "./pages/WorkForm";
 
@@ -25,7 +26,7 @@ import "./App.css";
 const workFormView = "work-form" as const;
 
 function App() {
-    
+
     const [activeView, setActiveView] = useState<View>("home");
 
     const [theme, setTheme] = useState<"dark" | "light">(
@@ -59,6 +60,9 @@ function App() {
     const [polesError, setPolesError] =
         useState<string | null>(null);
 
+    const [feedbackRefresh, setFeedbackRefresh] = useState(0);
+    const [feedbackLoading, setFeedbackLoading] = useState(true);
+    const [feedbackError, setFeedbackError] = useState<string | null>(null);
     const [workFeedback, setWorkFeedback] =
         useState<WorkFeedback[]>([]);
 
@@ -118,20 +122,30 @@ function App() {
                 setIsLoadingPoles(false);
             }
 
-            try {
-                setWorkFeedback(await getWorkFeedback());
-            } catch (error) {
-                console.error(
-                    "Unable to retrieve LV VM Model work feedback:",
-                    error
-                );
-                setWorkFeedback([]);
-            }
+
 
         };
 
         loadInitialData();
     }, []);
+
+    // Refresh field feedback on navigation and retry independently of pole loading.
+    useEffect(() => {
+        let active = true;
+        setFeedbackLoading(true);
+        setFeedbackError(null);
+        getWorkFeedback()
+            .then(feedback => {
+                if (active) setWorkFeedback(feedback);
+            })
+            .catch(error => {
+                if (active) setFeedbackError(error instanceof Error ? error.message : "Unable to load work feedback.");
+            })
+            .finally(() => {
+                if (active) setFeedbackLoading(false);
+            });
+        return () => { active = false; };
+    }, [activeView, feedbackRefresh]);
 
     /*
     |--------------------------------------------------------------------------
@@ -208,9 +222,13 @@ function App() {
             |--------------------------------------------------------------
             */
 
+            case "executive":
+                return <ExecutivePage poles={poles} workFeedback={workFeedback} isLoading={isLoadingPoles} error={polesError} feedbackLoading={feedbackLoading} feedbackError={feedbackError} />;
+
             case "engineer":
                 return (
                     <EngineerPage
+                        workFeedback={workFeedback}
                         key="engineer"
                         poles={poles}
                         isLoading={isLoadingPoles}
@@ -232,11 +250,14 @@ function App() {
             case "field":
                 return (
                     <FieldTeamPage
+                        feedbackLoading={feedbackLoading}
+                        feedbackError={feedbackError}
+                        onRefreshFeedback={() => setFeedbackRefresh(value => value + 1)}
                         poles={poles}
                         workFeedback={workFeedback}
                         isLoading={isLoadingPoles}
                         error={polesError}
-                        onOpenWorkForm={() => setActiveView(workFormView)}
+                        onWorkFormSaved={async () => { setWorkFeedback(await getWorkFeedback()); setFeedbackError(null); }}
                     />
                 );
 

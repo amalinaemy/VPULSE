@@ -91,3 +91,22 @@ export interface WorkFeedback {
 export async function getWorkFeedback(): Promise<WorkFeedback[]> {
   return apiGet<WorkFeedback[]>("/api/dataverse/work-feedback");
 }
+
+export type WorkFormValue = string | number | number[] | null;
+export interface WorkFormField {
+  name: string; label: string; type: string; required: boolean; maxLength: number | null;
+  options: { value: number; label: string }[] | null; value: WorkFormValue;
+}
+export interface WorkFormRecord { id: string | null; version: string | null; fields: WorkFormField[] }
+export function getWorkForm(poleId: string): Promise<WorkFormRecord> {
+  return apiGet(`/api/dataverse/work-form?poleId=${encodeURIComponent(poleId)}`);
+}
+export async function saveWorkForm(poleId: string, id: string | null, version: string | null, values: Record<string, WorkFormValue>): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/dataverse/work-form?poleId=${encodeURIComponent(poleId)}`, {
+    method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, version, values }),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(error?.detail ?? "Unable to save the work form.");
+  }
+}

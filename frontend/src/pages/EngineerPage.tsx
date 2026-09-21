@@ -1,12 +1,13 @@
+import { poleTrimmingStatus } from "../services/trimmingWork";
 import { useMemo, useState } from "react";
-import type { Pole } from "../services/api";
+import type { Pole, WorkFeedback } from "../services/api";
 import { GeospatialAnalysis } from "../components/GeospatialAnalysis";
 import { EngineerHierarchyTable } from "../components/EngineerHierarchyTable";
 
 const riskLevels = ["CRITICAL", "HIGH", "MEDIUM", "LOW"] as const;
 type RiskCategory = typeof riskLevels[number];
 
-export function EngineerPage({ poles, isLoading, error }: { poles: Pole[]; isLoading: boolean; error: string | null }) {
+export function EngineerPage({ poles, workFeedback, isLoading, error }: { poles: Pole[]; workFeedback: WorkFeedback[]; isLoading: boolean; error: string | null }) {
     const [selectedPole, setSelectedPole] = useState<Pole | null>(null);
     const [hierarchyTarget, setHierarchyTarget] = useState<{ pole: Pole; request: number } | null>(null);
 
@@ -26,18 +27,18 @@ export function EngineerPage({ poles, isLoading, error }: { poles: Pole[]; isLoa
             <span className="eyebrow">Engineer View</span>
             <h2>Pole-Level Technical Analytics</h2>
             <p>Map-first risk triage with feeder ranking, live Dataverse pole markers and work-order-ready actions.</p>
-            <div className="pill-row"><span>Esri Satellite default</span><span>Risk-layer filtering</span><span>Pole marker numbers</span></div>
+            <div className="pill-row"><span>Esri Satellite default</span><span>Risk-layer filtering</span></div>
         </section>
         {!isLoading && !error && poles.length > 0 && <section className="risk-insights" aria-label="Risk overview"><div className="risk-summary-cards">
             {riskLevels.map((category) => <article className={`risk-summary-card risk-${category.toLowerCase()}`} key={category}><span>{category}</span><strong>{riskSummary[category]}</strong><small>poles</small></article>)}
         </div></section>}
         {!isLoading && !error && poles.length > 0 && <GeospatialAnalysis poles={poles} onSelectPole={openPoleRecord} onViewDetails={setSelectedPole} />}
-        <EngineerHierarchyTable poles={poles} isLoading={isLoading} error={error} targetRequest={hierarchyTarget} />
-                {selectedPole && <PoleDetailsModal pole={selectedPole} onClose={() => setSelectedPole(null)} />}
+        <EngineerHierarchyTable workFeedback={workFeedback} poles={poles} isLoading={isLoading} error={error} targetRequest={hierarchyTarget} />
+                {selectedPole && <PoleDetailsModal workFeedback={workFeedback} pole={selectedPole} onClose={() => setSelectedPole(null)} />}
             </>;
 }
 
-export function PoleDetailsModal({ pole, onClose }: { pole: Pole; onClose: () => void }) {
+export function PoleDetailsModal({ pole, workFeedback, onClose }: { pole: Pole; workFeedback: WorkFeedback[]; onClose: () => void }) {
     const category = riskLevel(pole);
     const openMap = () => window.open(`https://www.google.com/maps?q=${pole.latitude},${pole.longitude}`, "_blank", "noopener,noreferrer");
     return <div className="pole-modal-backdrop" role="presentation" onMouseDown={onClose}>
@@ -51,8 +52,10 @@ export function PoleDetailsModal({ pole, onClose }: { pole: Pole; onClose: () =>
             </div>
             <article className="pole-reason"><span>Why AI flagged this pole</span><p>{display(pole.riskReason)}</p></article>
             <dl className="pole-detail-grid">
+                <Detail label="Zone" value={pole.zone} />
+                <Detail label="State" value={pole.state} />
                 <Detail label="Feeder" value={pole.feederId} />
-                <Detail label="Zone / street" value={pole.streetName} />
+                <Detail label="Street name" value={pole.streetName} />
                 <Detail label="Coordinates" value={`${display(pole.latitude)}, ${display(pole.longitude)}`} />
                 <Detail label="Line type" value={pole.lineType} />
                 <Detail label="Last prune" value={formatDate(pole.lastPruneDate)} />
@@ -61,7 +64,7 @@ export function PoleDetailsModal({ pole, onClose }: { pole: Pole; onClose: () =>
                 <Detail label="Operational category" value={pole.operationalRiskCategory} />
                 <Detail label="AI risk group" value={pole.aiRiskGroup} />
                 <Detail label="AI risk score" value={pole.aiRiskScore} />
-                <Detail label="Work-order status" value={pole.workOrderStatus} />
+                <Detail label="Trimming work status" value={poleTrimmingStatus(pole.poleId, workFeedback)} />
                 <Detail label="AI validation" value={pole.aiValidation} />
                 <Detail label="Modified on" value={formatDate(pole.modifiedOn)} />
             </dl>

@@ -55,6 +55,23 @@ public class DataverseController : ControllerBase
         }
     }
 
+    [HttpGet("work-form")]
+    public IActionResult GetWorkForm([FromQuery] string poleId)
+    {
+        try { return Ok(_dataverseService.GetWorkForm(poleId)); }
+        catch (Exception) { return Problem("Unable to load the Dataverse work form."); }
+    }
+
+    [HttpPut("work-form")]
+    [RequestSizeLimit(16000000)]
+    public IActionResult SaveWorkForm([FromQuery] string poleId, [FromBody] WorkFormSubmission input)
+    {
+        try { return Ok(_dataverseService.SaveWorkForm(poleId, input)); }
+        catch (ArgumentException ex) { return BadRequest(new { detail = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { detail = ex.Message }); }
+        catch (Exception) { return Problem("Unable to save the Dataverse work form."); }
+    }
+
     /*HTTP REQUEST call Candidate List Table*/
     [HttpGet("poles")]
     public IActionResult GetPoles()
@@ -76,6 +93,10 @@ public class DataverseController : ControllerBase
                 streetName = entity.Contains("cr1da_zone")
                     ? entity["cr1da_zone"]
                     : null,
+
+                zone = GetValue(entity, "crf11_zone_name"),
+                state = GetValue(entity, "crf11_state"),
+                station = GetValue(entity, "crf11_station", true)?.ToString(),
 
                 latitude = entity.Contains("cr1da_latitude")
                     ? entity["cr1da_latitude"]

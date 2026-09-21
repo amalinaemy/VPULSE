@@ -1,3 +1,5 @@
+import { WorkFormModal } from "../components/WorkFormModal";
+import { trimmingWorkStatus } from "../services/trimmingWork";
 import { useEffect, useMemo, useState } from "react";
 import { GeospatialAnalysis } from "../components/GeospatialAnalysis";
 import type { Pole, WorkFeedback } from "../services/api";
@@ -6,9 +8,12 @@ import { PoleDetailsModal } from "./EngineerPage";
 interface FieldTeamPageProps {
     poles: Pole[];
     workFeedback: WorkFeedback[];
+    feedbackLoading: boolean;
+    feedbackError: string | null;
+    onRefreshFeedback: () => void;
     isLoading: boolean;
     error: string | null;
-    onOpenWorkForm: () => void;
+    onWorkFormSaved: () => Promise<void>;
 }
 
 type TrimmingStatus = "Completed" | "Not Started" | "In Progress" | "Pending";
@@ -16,7 +21,9 @@ type TrimmingFilter = "All" | TrimmingStatus;
 type RiskFilter = "All" | "CRITICAL" | "HIGH";
 const pageSize = 10;
 
-export function FieldTeamPage({ poles, workFeedback, isLoading, error, onOpenWorkForm }: FieldTeamPageProps) {
+export function FieldTeamPage({ poles, workFeedback, isLoading, error, onWorkFormSaved, feedbackLoading, feedbackError, onRefreshFeedback }: FieldTeamPageProps) {
+    const feedbackUnavailable = feedbackLoading || !!feedbackError;
+    const [formPole, setFormPole] = useState<Pole | null>(null);
     const [trimmingFilter, setTrimmingFilter] = useState<TrimmingFilter>("All");
     const [riskFilter, setRiskFilter] = useState<RiskFilter>("All");
     const [search, setSearch] = useState("");
@@ -125,20 +132,25 @@ export function FieldTeamPage({ poles, workFeedback, isLoading, error, onOpenWor
     return <>
         <section className="hero-panel field-team-hero">
             <span className="eyebrow">Field Team View</span>
-            <h2>Daily Work Pack and Site Navigation</h2>
+            <h2>Work Pack and Site Navigation</h2>
             <p>Execution-focused view for task selection, route opening, completion status and evidence collection.</p>
             <div className="pill-row"><span>Field validation</span></div>
         </section>
         <section className="metrics field-team-metrics">
             <FieldMetric label="Today Work Pack" value={priorityPoles.length} note="Critical + High tasks" />
-            <FieldMetric label="Completed" value={statusCounts.Completed} note="Trimming work completed" accent="green" />
-            <FieldMetric label="In Progress" value={statusCounts["In Progress"]} note="Work currently underway" accent="orange" />
-            <FieldMetric label="Not Started" value={statusCounts["Not Started"]} note="Work has not started" accent="red" />
-            <FieldMetric label="Pending" value={statusCounts.Pending} note="Need site action" />
+            <FieldMetric label="Completed" value={feedbackUnavailable ? "—" : statusCounts.Completed} note="Trimming work completed" accent="green" />
+            <FieldMetric label="In Progress" value={feedbackUnavailable ? "—" : statusCounts["In Progress"]} note="Work currently underway" accent="orange" />
+            <FieldMetric label="Not Started" value={feedbackUnavailable ? "—" : statusCounts["Not Started"]} note="Work has not started" accent="red" />
+            <FieldMetric label="Pending" value={feedbackUnavailable ? "—" : statusCounts.Pending} note="Need site action" />
         </section>
-        {isLoading ?
+        <div className="field-feedback-refresh">
+            <button type="button" className="export-work-orders-button" onClick={onRefreshFeedback} disabled={feedbackLoading}>
+                {feedbackLoading ? "Loading trimming data…" : "Refresh trimming data"}
+            </button>
+        </div>
+        {isLoading || feedbackLoading ?
         <p className="loading">Loading field work pack…</p>
-        : error ? <p className="loading">{error}</p> : priorityPoles.length === 0 ?
+        : error ? <p className="loading">{error}</p> : feedbackError ? <p className="loading" role="alert">Unable to load trimming data: {feedbackError}. Use Refresh trimming data to retry.</p> : priorityPoles.length === 0 ?
         <p className="loading">No Critical or High poles found.</p> : <>
             <div className="field-team-map">
                 <GeospatialAnalysis poles={priorityPoles} showFeederRanking={false} onViewDetails={setSelectedPole} />
@@ -206,7 +218,7 @@ export function FieldTeamPage({ poles, workFeedback, isLoading, error, onOpenWor
                         </div>
                         <div className="field-task-actions">
                             <button type="button" onClick={() => openGoogleMaps(pole)}>Map</button>
-                            <button type="button" onClick={onOpenWorkForm}>Open Form</button>
+                            <button type="button" disabled={!pole.poleId} onClick={() => setFormPole(pole)}>Form</button>
                         </div>
                     </article>;
                 })}</div>
@@ -222,26 +234,19 @@ export function FieldTeamPage({ poles, workFeedback, isLoading, error, onOpenWor
                     </div>
                 </>}
             </section>
-            {selectedPole && <PoleDetailsModal pole={selectedPole} onClose={() => setSelectedPole(null)} />}
+            {formPole && <WorkFormModal pole={formPole} onClose={() => setFormPole(null)} onSaved={onWorkFormSaved} />}
+            {selectedPole && <PoleDetailsModal workFeedback={workFeedback} pole={selectedPole} onClose={() => setSelectedPole(null)} />}
         </>}
     </>;
 }
 
-function FieldMetric({ label, value, note, accent = "blue" }: { label: string; value: number; note: string; accent?: string }) {
+function FieldMetric({ label, value, note, accent = "blue" }: { label: string; value: number | string; note: string; accent?: string }) {
     return <article className="metric"><span>{label}</span><strong className={accent}>{value}</strong><p>{note}</p></article>;
 }
 
 function riskScore(pole: Pole) { return Number(pole.finalAiRiskScore ?? -1); }
 function normalizePoleId(poleId: string | null) { return poleId?.trim().toLowerCase() ?? ""; }
 function fieldTaskId(poleId: string | null) { return `field-task-${normalizePoleId(poleId).replace(/[^a-z0-9_-]/g, "-")}`; }
-function trimmingWorkStatus(value: string | undefined): TrimmingStatus {
-    if (!value?.trim()) return "Pending";
-    const status = value.trim().toLowerCase();
-    if (status.includes("complete") || status.includes("done") || status === "yes") return "Completed";
-    if (status.includes("progress") || status.includes("ongoing")) return "In Progress";
-    if (status.includes("not started") || status.includes("not-started")) return "Not Started";
-    return "Pending";
-}
 function trimmingStatusClass(status: TrimmingStatus) {
     if (status === "Completed") return "status-completed";
     if (status === "In Progress") return "status-in-progress";

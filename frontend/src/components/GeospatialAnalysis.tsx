@@ -34,7 +34,7 @@ export function GeospatialAnalysis({ poles, showFeederRanking = true, onSelectPo
                     <TileLayer attribution='&copy; Esri, Maxar, Earthstar Geographics' url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" />
                     <FitMapToPoles poles={mapPoles} />
                     {mapPoles.map((pole, index) => <Marker key={`${pole.poleId ?? "pole"}-${index}`} position={[Number(pole.latitude), Number(pole.longitude)]} icon={poleIcon(riskLevel(pole), markerNumber(pole))} eventHandlers={{ click: () => setSelectedPole(pole), dblclick: () => openGoogleMaps(pole) }}>
-                        <Tooltip direction="top" offset={[0, -22]}>{pole.poleId ?? "Unnamed pole"}</Tooltip>
+                        <Tooltip direction="top" offset={[0, -14]}>{pole.poleId ?? "Unnamed pole"}</Tooltip>
                     </Marker>)}
                 </MapContainer>
                 <div className="map-legend">{categories.map((category) => <span key={category} className={`map-legend-${category.toLowerCase()}`}><i />{category[0]}{category.slice(1).toLowerCase()}</span>)}</div>
@@ -69,13 +69,13 @@ function riskLevel(pole: Pole): RiskCategory {
 function riskScore(pole: Pole) { return Number(pole.finalAiRiskScore ?? -1); }
 
 function poleIcon(category: RiskCategory, label: string) {
-    const width = Math.max(27, 12 + label.length * 7);
-    return divIcon({ className: "", iconSize: [width, 31], iconAnchor: [width / 2, 31], html: `<span class="pole-marker pole-marker-${category.toLowerCase()}" style="--marker-width:${width}px"><b>${label}</b></span>` });
+    const width = Math.max(28, 12 + label.length * 6);
+    return divIcon({ className: "", iconSize: [width, 28], iconAnchor: [width / 2, 14], html: `<span class="pole-marker pole-marker-${category.toLowerCase()}" style="--marker-width:${width}px"><b>${label}</b></span>` });
 }
 
 function markerNumber(pole: Pole) {
-    const finalSegment = pole.poleId?.split("_").at(-1)?.replace(/[^a-zA-Z0-9-]/g, "");
-    return finalSegment?.split("-").at(-1) || "•";
+    // Remove the letter prefix while retaining the complete numeric path.
+    return pole.poleId?.trim().match(/\d[0-9a-zA-Z/_-]*$/)?.[0] || "•";
 }
 function openGoogleMaps(pole: Pole) { window.open(`https://www.google.com/maps?q=${pole.latitude},${pole.longitude}`, "_blank", "noopener,noreferrer"); }
 

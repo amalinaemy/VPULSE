@@ -15,3 +15,22 @@ dotnet run --launch-profile http
 ```
 
 The frontend loads records from `GET /api/dataverse/poles`.
+
+
+## Web work-form popup
+
+The Field Team **Open Form** button loads `/api/dataverse/work-form?poleId=...`.
+It uses the existing `cr1da_lvvmmodel` table and its published choice metadata.
+The most recently modified matching Pole ID is edited; no match opens a new form.
+The popup carries Pole ID, Feeder ID, street_name, latitude, and longitude.
+Existing form values take precedence over defaults, and Pole ID stays fixed.
+
+`PUT` to the same endpoint creates or updates the record, using the record ID and
+row version returned by `GET`. Updates use optimistic concurrency so a stale
+form cannot overwrite a newer Power App edit. Unchanged image values are omitted;
+new JPG/PNG uploads are limited to 4 MB each. The Dataverse application user needs
+create and update privileges for this table in addition to read access.
+
+After restarting the API, the local frontend can use these endpoints. The popup
+refreshes work-feedback status after a successful save. The separate embedded
+Power App view is still available.
