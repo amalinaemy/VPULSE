@@ -1,14 +1,19 @@
+import { WorkFormModal } from "../components/WorkFormModal";
+import { trimmingWorkStatus } from "../services/trimmingWork";
 import { useEffect, useMemo, useState } from "react";
 import { GeospatialAnalysis } from "../components/GeospatialAnalysis";
 import type { Pole, WorkFeedback } from "../services/api";
 import { PoleDetailsModal } from "./EngineerPage";
 
-interface FieldTeamPageProps {
+export interface FieldTeamPageProps {
     poles: Pole[];
     workFeedback: WorkFeedback[];
     isLoading: boolean;
     error: string | null;
-    onOpenWorkForm: () => void;
+    feedbackLoading: boolean;
+    feedbackError: string | null;
+    onRefreshFeedback: () => void;
+    onWorkFormSaved: () => Promise<void>;
 }
 
 type TrimmingStatus = "Completed" | "Not Started" | "In Progress" | "Pending";
@@ -16,7 +21,8 @@ type TrimmingFilter = "All" | TrimmingStatus;
 type RiskFilter = "All" | "CRITICAL" | "HIGH";
 const pageSize = 10;
 
-export function FieldTeamPage({ poles, workFeedback, isLoading, error, onOpenWorkForm }: FieldTeamPageProps) {
+export function FieldTeamPage({ poles, workFeedback, isLoading, error, feedbackLoading, feedbackError, onRefreshFeedback, onWorkFormSaved }: FieldTeamPageProps) {
+    const [formPole, setFormPole] = useState<Pole | null>(null);
     const [trimmingFilter, setTrimmingFilter] = useState<TrimmingFilter>("All");
     const [riskFilter, setRiskFilter] = useState<RiskFilter>("All");
     const [search, setSearch] = useState("");
@@ -125,10 +131,15 @@ export function FieldTeamPage({ poles, workFeedback, isLoading, error, onOpenWor
     return <>
         <section className="hero-panel field-team-hero">
             <span className="eyebrow">Field Team View</span>
-            <h2>Daily Work Pack and Site Navigation</h2>
+            <h2>Work Pack and Site Navigation</h2>
             <p>Execution-focused view for task selection, route opening, completion status and evidence collection.</p>
             <div className="pill-row"><span>Field validation</span></div>
         </section>
+        {feedbackLoading ? <p className="loading" role="status">Loading trimming progress…</p> : feedbackError &&
+            <div className="loading" role="alert">
+                <p>Unable to refresh trimming progress: {feedbackError}</p>
+                <button type="button" onClick={onRefreshFeedback}>Retry</button>
+            </div>}
         <section className="metrics field-team-metrics">
             <FieldMetric label="Today Work Pack" value={priorityPoles.length} note="Critical + High tasks" />
             <FieldMetric label="Completed" value={statusCounts.Completed} note="Trimming work completed" accent="green" />
@@ -198,7 +209,8 @@ export function FieldTeamPage({ poles, workFeedback, isLoading, error, onOpenWor
                     const trimmingWork = trimmingWorkStatus(trimmingWorkByPole.get(normalizePoleId(pole.poleId)));
                     return <article className="field-task" id={fieldTaskId(pole.poleId)} tabIndex={-1} key={`${pole.poleId ?? "pole"}-${index}`}>
                         <div className="field-task-rank" aria-label={`Priority rank ${priorityRankByPole.get(pole)}`}>{priorityRankByPole.get(pole)}</div>
-                        <div className="field-task-info"><h4>{pole.poleId ?? "Unnamed pole"}</h4><p>{pole.streetName ?? "Street not recorded"}</p><small>{pole.action ?? "Field inspection required"}</small>
+                        <div className="field-task-info"><h4>{pole.poleId ?? "Unnamed pole"}</h4><p>{pole.streetName ?? "Street not recorded"}</p>
+                            <small>{pole.action ?? "Field inspection required"}</small>
                             <span className={`trimming-status ${trimmingStatusClass(trimmingWork)}`}>Trimming work: {trimmingWork}</span>
                         </div>
                         <div className="field-task-statuses">
@@ -206,7 +218,7 @@ export function FieldTeamPage({ poles, workFeedback, isLoading, error, onOpenWor
                         </div>
                         <div className="field-task-actions">
                             <button type="button" onClick={() => openGoogleMaps(pole)}>Map</button>
-                            <button type="button" onClick={onOpenWorkForm}>Open Form</button>
+                            <button type="button" disabled={!pole.poleId} onClick={() => setFormPole(pole)}>Form</button>
                         </div>
                     </article>;
                 })}</div>
@@ -222,7 +234,8 @@ export function FieldTeamPage({ poles, workFeedback, isLoading, error, onOpenWor
                     </div>
                 </>}
             </section>
-            {selectedPole && <PoleDetailsModal pole={selectedPole} onClose={() => setSelectedPole(null)} />}
+            {formPole && <WorkFormModal pole={formPole} onClose={() => setFormPole(null)} onSaved={onWorkFormSaved} />}
+            {selectedPole && <PoleDetailsModal workFeedback={workFeedback} pole={selectedPole} onClose={() => setSelectedPole(null)} />}
         </>}
     </>;
 }
@@ -234,14 +247,6 @@ function FieldMetric({ label, value, note, accent = "blue" }: { label: string; v
 function riskScore(pole: Pole) { return Number(pole.finalAiRiskScore ?? -1); }
 function normalizePoleId(poleId: string | null) { return poleId?.trim().toLowerCase() ?? ""; }
 function fieldTaskId(poleId: string | null) { return `field-task-${normalizePoleId(poleId).replace(/[^a-z0-9_-]/g, "-")}`; }
-function trimmingWorkStatus(value: string | undefined): TrimmingStatus {
-    if (!value?.trim()) return "Pending";
-    const status = value.trim().toLowerCase();
-    if (status.includes("complete") || status.includes("done") || status === "yes") return "Completed";
-    if (status.includes("progress") || status.includes("ongoing")) return "In Progress";
-    if (status.includes("not started") || status.includes("not-started")) return "Not Started";
-    return "Pending";
-}
 function trimmingStatusClass(status: TrimmingStatus) {
     if (status === "Completed") return "status-completed";
     if (status === "In Progress") return "status-in-progress";

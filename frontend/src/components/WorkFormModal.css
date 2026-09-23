@@ -1,0 +1,20 @@
+.work-form-dialog { width: min(760px, calc(100vw - 32px)); max-height: 90dvh; padding: 0; border: 1px solid #c2d3e1; border-radius: 20px; background: #f6f9fc; color: #102f63; box-shadow: 0 24px 80px #00153366; }
+.work-form-dialog::backdrop { background: #071429b3; }
+.work-form-dialog form { padding: 24px; }
+.work-form-dialog header { display: flex; justify-content: space-between; gap: 16px; align-items: start; }
+.work-form-dialog h2 { margin: 0; font-size: 1.4rem; }
+.work-form-dialog header p { margin: 8px 0 20px; }
+.work-form-fields { border: 0; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.work-form-fields label { display: flex; flex-direction: column; gap: 8px; min-width: 0; font-size: .9rem; font-weight: 650; }
+.work-form-fields label b { color: #bd2435; }
+.work-form-fields input, .work-form-fields select, .work-form-fields textarea { width: 100%; box-sizing: border-box; min-height: 42px; padding: 10px; border: 1px solid #a9bbcf; border-radius: 7px; background: white; color: #172b45; font: inherit; }
+.work-form-fields input:read-only { background: #e9eff7; }
+.work-form-fields img { max-height: 150px; max-width: 100%; object-fit: contain; }
+.work-form-dialog footer { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; }
+.work-form-dialog button { padding: 10px 20px; border: 0; border-radius: 8px; background: #0d3269; color: white; font-weight: 700; cursor: pointer; }
+.work-form-dialog button:disabled { opacity: .55; cursor: wait; }
+.work-form-error { padding: 12px; background: #ffe9ed; color: #9e1830; border-radius: 8px; }
+@media (max-width: 600px) { .work-form-fields { grid-template-columns: 1fr; } .work-form-dialog form { padding: 16px; } }
+
+.work-form-fields .work-form-remarks { grid-column: 1 / -1; }
+.work-form-fields textarea { resize: vertical; }
