@@ -66,19 +66,19 @@ export default async function handler(
 
       if (!flowResponse.ok) {
 
-        const error =
-          await flowResponse.text();
+        const failure: any = await flowResponse.json().catch(() => null);
+        const code = typeof failure?.error?.code === "string" && /^[a-zA-Z0-9_.-]{1,100}$/.test(failure.error.code) ? ` (${failure.error.code})` : "";
 
 
         console.error(
           "Get Work Form flow error:",
-          error
+          flowResponse.status, code
         );
 
 
         return res.status(502).json({
           message:
-            `GetWorkForm returned HTTP ${flowResponse.status}. Check the flow run history, column logical names and trigger authentication.`
+            `GetWorkForm returned HTTP ${flowResponse.status}${code}. Check the failed action in the flow run history.`
         });
 
       }
