@@ -13,6 +13,7 @@ import { WorkForm } from "./pages/WorkForm";
 import {
     getPoles,
     getWorkFeedback,
+    invalidateWorkFeedback,
     type Pole,
     type WorkFeedback,
 } from "./services/api";
@@ -105,10 +106,12 @@ function App() {
 
     // Refresh field feedback on navigation and retry independently of pole loading.
     useEffect(() => {
+        if (isLoadingPoles || polesError) return;
+        const controller = new AbortController();
         let active = true;
         setFeedbackLoading(true);
         setFeedbackError(null);
-        getWorkFeedback()
+        getWorkFeedback(poles.flatMap(pole => pole.poleId ? [pole.poleId] : []), controller.signal)
             .then(feedback => {
                 if (active) setWorkFeedback(feedback);
             })
@@ -118,8 +121,8 @@ function App() {
             .finally(() => {
                 if (active) setFeedbackLoading(false);
             });
-        return () => { active = false; };
-    }, [activeView, feedbackRefresh]);
+        return () => { active = false; controller.abort(); };
+    }, [poles, isLoadingPoles, polesError, feedbackRefresh]);
 
     /*
     |--------------------------------------------------------------------------
@@ -226,12 +229,12 @@ function App() {
                     <FieldTeamPage
                         feedbackLoading={feedbackLoading}
                         feedbackError={feedbackError}
-                        onRefreshFeedback={() => setFeedbackRefresh(value => value + 1)}
+                        onRefreshFeedback={() => { invalidateWorkFeedback(); setFeedbackRefresh(value => value + 1); }}
                         poles={poles}
                         workFeedback={workFeedback}
                         isLoading={isLoadingPoles}
                         error={polesError}
-                        onWorkFormSaved={async () => { setWorkFeedback(await getWorkFeedback()); setFeedbackError(null); }}
+                        onWorkFormSaved={async () => { invalidateWorkFeedback(); setFeedbackRefresh(value => value + 1); }}
                     />
                 );
 

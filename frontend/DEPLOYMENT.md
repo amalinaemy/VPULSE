@@ -22,26 +22,30 @@ environment variable configured. `npm run dev` serves Vite only.
 
 ## Work feedback and forms
 
-The frontend calls `/api/work-feedback` for trimming progress and
-`/api/work-form?poleId=...` for form reads and saves. Configure these server-side
-variables in Vercel for each relevant deployment environment and redeploy:
+Use only the existing GetWorkForm and SaveWorkForm flows. Keep `poleId` required,
+the pole filter and `$top: 1` in GetWorkForm.
 
-- `POWER_AUTOMATE_GET_WORK_FEEDBACK_URL`: POST `{}`. List rows from
-  `cr1da_lvvmmodel`, including `cr1da_feederpolesection`, `crf11_trimmingwork`,
-  and `modifiedon`. Return status 200 with an array or `{ "value": [...] }`.
-  Include the formatted choice label for `crf11_trimmingwork`, or transform
-  each row into `{ "poleId": "P1", "trimmingWork": "Completed", "modifiedOn": "2026-09-23T00:00:00Z" }`.
-  Return all required rows using flow pagination. Feedback is sorted newest first.
-- `POWER_AUTOMATE_GET_WORK_FORM_URL`: POST `{ "poleId": "P1" }`. Return
-  `{ "id": null, "version": null, "fields": [...] }`. Each field must match
-  `WorkFormField` in `src/services/api.ts`, including its name, label, type,
-  required flag, maxLength, options and value. Raw Dataverse List rows output
-  is not the form schema expected by the modal.
-- `POWER_AUTOMATE_SAVE_WORK_FORM_URL`: POST `{ "poleId": "P1", "id": null,
-  "version": null, "values": { ... } }`. Validate and persist the changes before
-  returning success. Configure concurrency/version handling in the flow.
+- Set `POWER_AUTOMATE_GET_WORK_FORM_URL` in Vercel. Both read routes POST
+  `{ "poleId": "P1" }` to this flow. Return one raw Dataverse row, or
+  `{ "found": false }` when no row exists.
+- Set `POWER_AUTOMATE_SAVE_WORK_FORM_URL` for the existing save flow. Its
+  request remains `{ "poleId": "P1", "id": null, "version": null, "values": { ... } }`.
+- `/api/work-feedback?poleId=P1` extracts trimming status from that pole's row.
+  The browser deduplicates pole IDs, runs at most four reads concurrently and
+  caches successful results for five minutes. Failed reads leave totals unavailable;
+  they are not treated as pending work. Manual refresh clears the cache.
+- `/api/work-form?poleId=P1` loads the selected pole. The frontend converts the raw
+  row to form fields and preserves the Dataverse row ID and ETag. Include the
+  primary key `cr1da_lvvmmodelid` and formatted choice annotations in the response.
+- Raw records contain only current choice values, not all allowed option codes.
+  Such choice fields display their current labels read-only. A response using the
+  existing `{ id, version, fields }` contract with complete options supports
+  editable choice controls. No option values are guessed.
 
-These are separate contracts: the existing poles flow alone does not provide
-feedback or form data. Keep trigger URLs server-side. A trigger requiring OAuth
-also requires server-side token authentication. Deploying `frontend` does not
-deploy the ASP.NET project in `backend/Vpulse.Api`.
+The flow's Dataverse query must use actual column logical names, such as
+`cr1da_feederpolesection` and `crf11_trimmingwork`. Ensure one HTTP Response
+executes per run. Review the failed action in run history for any upstream 4xx/5xx.
+Trigger URLs remain server-side. If the HTTP trigger requires OAuth, server-side
+OAuth authentication must also be configured.
+
+Tests: `node --experimental-strip-types --test tests/work-form-flow.test.ts`.

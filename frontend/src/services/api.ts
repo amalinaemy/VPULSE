@@ -1,3 +1,4 @@
+import { normalizeWorkForm } from "./workFormResponse";
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5042";
 
@@ -171,18 +172,46 @@ export interface WorkFeedback {
   modifiedOn: string | null;
 }
 
-export async function getWorkFeedback(): Promise<WorkFeedback[]> {
-  return apiGet<WorkFeedback[]>("/api/work-feedback", "");
+const feedbackCache = new Map<string, { expires: number; data: WorkFeedback[] }>();
+export function invalidateWorkFeedback(poleId?: string) {
+  if (poleId) feedbackCache.delete(poleId.trim());
+  else feedbackCache.clear();
+}
+export async function getWorkFeedback(poleIds: string[], signal?: AbortSignal): Promise<WorkFeedback[]> {
+  const ids = [...new Set(poleIds.map(id => id.trim()).filter(Boolean))];
+  const result: WorkFeedback[][] = new Array(ids.length);
+  let next = 0;
+  let failed = false;
+  async function worker() {
+    while (!failed && next < ids.length) {
+      signal?.throwIfAborted();
+      const index = next++;
+      const id = ids[index];
+      const cached = feedbackCache.get(id);
+      if (cached && cached.expires > Date.now()) { result[index] = cached.data; continue; }
+      try {
+        const response = await fetch(`/api/work-feedback?poleId=${encodeURIComponent(id)}`, { signal });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.message ?? `Unable to load trimming data (HTTP ${response.status}).`);
+        if (!Array.isArray(data)) throw new Error('Invalid trimming data response.');
+        feedbackCache.set(id, { expires: Date.now() + 300000, data });
+        result[index] = data;
+      } catch (error) { failed = true; throw error; }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(4, ids.length) }, worker));
+  return result.flat();
 }
 
 export type WorkFormValue = string | number | number[] | null;
 export interface WorkFormField {
-  name: string; label: string; type: string; required: boolean; maxLength: number | null;
+  name: string; label: string; type: string; required: boolean; maxLength: number | null; readOnly?: boolean;
   options: { value: number; label: string }[] | null; value: WorkFormValue;
 }
 export interface WorkFormRecord { id: string | null; version: string | null; fields: WorkFormField[] }
-export function getWorkForm(poleId: string): Promise<WorkFormRecord> {
-  return apiGet(`/api/work-form?poleId=${encodeURIComponent(poleId)}`, "");
+export async function getWorkForm(poleId: string): Promise<WorkFormRecord> {
+  const data = await apiGet(`/api/work-form?poleId=${encodeURIComponent(poleId)}`, "");
+  return normalizeWorkForm(data, poleId);
 }
 export async function saveWorkForm(poleId: string, id: string | null, version: string | null, values: Record<string, WorkFormValue>): Promise<void> {
   const response = await fetch(`/api/work-form?poleId=${encodeURIComponent(poleId)}`, {

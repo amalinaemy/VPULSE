@@ -78,7 +78,7 @@ export default async function handler(
 
         return res.status(502).json({
           message:
-            "Unable to retrieve the work form from Dataverse."
+            `GetWorkForm returned HTTP ${flowResponse.status}. Check the flow run history, column logical names and trigger authentication.`
         });
 
       }

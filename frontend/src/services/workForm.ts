@@ -4,7 +4,8 @@ const lockedFieldNames = new Set(["cr1da_feederpolesection", "cr1da_feederid", "
 export const isLockedField = (field: {
     name: string;
     label: string;
-}) => lockedFieldNames.has(field.name) || ["poleid", "feederid", "streetname", "latitude", "longitude"].includes(key(field.label));
+    readOnly?: boolean;
+}) => field.readOnly === true || lockedFieldNames.has(field.name) || ["poleid", "feederid", "streetname", "latitude", "longitude"].includes(key(field.label));
 const fieldOrder = ["poleid", "feederid", "streetname", "latitude", "longitude", "inspectionstatus", "risklevel", "namapegawaicontractors", "inspectiondate", "aiconfirmedenroachment", "gambarsemasaditapak", "gambarselepasditapak", "fieldtrimmingrequired", "trimmingwork", "remarksactiontaken"];
 export function sortWorkFormFields(fields: WorkFormField[]) {
     const position = (field: WorkFormField) => fieldOrder.indexOf(field.name === "cr1da_feederpolesection" ? "poleid" : key(field.label));
