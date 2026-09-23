@@ -11,10 +11,8 @@ import { OverviewPage } from "./pages/OverviewPage";
 import { WorkForm } from "./pages/WorkForm";
 
 import {
-    getHealth,
     getPoles,
     getWorkFeedback,
-    type HealthResponse,
     type Pole,
     type WorkFeedback,
 } from "./services/api";
@@ -42,12 +40,6 @@ function App() {
         () => window.innerWidth > 1050
     );
 
-    /* Backend health
-    */
-
-    const [health, setHealth] =
-        useState<HealthResponse | null>(null);
-
     /*
     Dataverse pole data
     */
@@ -74,21 +66,6 @@ function App() {
 
     useEffect(() => {
         const loadInitialData = async () => {
-            /*
-            |--------------------------------------------------------------
-            | Backend health
-            |--------------------------------------------------------------
-            */
-
-            void getHealth().then(setHealth).catch((error) => {
-                console.error(
-                    "Unable to connect to V-PULSE API:",
-                    error
-                );
-
-                setHealth(null);
-            });
-
             /*
             |--------------------------------------------------------------
             | Pole data
@@ -319,7 +296,7 @@ function App() {
                     <div className="header-area">
                         <AppHeader
                             activeView={activeView}
-                            health={health}
+                            dataStatus={isLoadingPoles ? "loading" : polesError ? "error" : "connected"}
                             recordCount={poles.length}
                             lastModifiedOn={
                                 getLatestModifiedOn(

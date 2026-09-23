@@ -1,18 +1,17 @@
-import type { HealthResponse } from "../services/api";
 import type { View } from "../types/view";
 import logoTnb from "../assets/logoTNB.png";
 
 interface AppHeaderProps {
     activeView?: View;
-    health: HealthResponse | null;
+    dataStatus: "loading" | "connected" | "error";
     recordCount: number;
     lastModifiedOn: string | null;
     theme: "dark" | "light";
     onThemeToggle: () => void;
 }
 
-export function AppHeader({ health, recordCount, lastModifiedOn, theme, onThemeToggle }: AppHeaderProps) {
-    const dataStatus = lastModifiedOn
+export function AppHeader({ dataStatus, recordCount, lastModifiedOn, theme, onThemeToggle }: AppHeaderProps) {
+    const recordSummary = lastModifiedOn
         ? `Last Refresh ${formatLastRefresh(lastModifiedOn)} · ${recordCount} Records`
         : `Last Refresh unavailable · ${recordCount} Records`;
     return <>
@@ -25,7 +24,7 @@ export function AppHeader({ health, recordCount, lastModifiedOn, theme, onThemeT
                 </div>
             </div>
             <div className="navbar-actions">
-                <div className="connection"><span className={health ? "live-dot" : "offline-dot"} />{health ? dataStatus : "Backend unavailable"}</div>
+                <div className="connection" role="status"><span className={dataStatus === "connected" ? "live-dot" : dataStatus === "error" ? "offline-dot" : undefined} />{dataStatus === "loading" ? "Loading pole data…" : dataStatus === "error" ? "Pole data unavailable" : recordSummary}</div>
                 <button className="theme-button" type="button" onClick={onThemeToggle} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}>{theme === "dark" ? "☀" : "☾"}</button>
                 <button className="profile-button" type="button" aria-label="User profile"><span className="profile-avatar">NR</span></button>
             </div>
