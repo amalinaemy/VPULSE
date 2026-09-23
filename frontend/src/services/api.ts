@@ -78,8 +78,91 @@ export interface Pole {
   modifiedOn?: string | null;
 }
 
-export async function getPoles(): Promise<Pole[]> {
-  return apiGet<Pole[]>("/api/dataverse/poles");
+export async function getPoles():
+  Promise<Pole[]> {
+
+  const response =
+    await fetch("/api/poles");
+
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(error?.message ?? error?.detail ?? `Unable to load pole data (HTTP ${response.status}).`);
+  }
+
+  const records = await response.json().catch(() => {
+    throw new Error("The /api/poles endpoint did not return JSON. Check the Vercel API deployment and routing.");
+  });
+  if (!Array.isArray(records)) {
+    throw new Error("The /api/poles endpoint must return an array of pole records.");
+  }
+
+
+  return records.map(
+    (record: any): Pole => ({
+
+      poleId:
+        record.cr1da_poleidentifier ??
+        null,
+
+      feederId:
+        record.cr1da_feederidentifier ??
+        null,
+
+      streetName:
+        record.cr1da_zone ??
+        null,
+
+      zone:
+        record.crf11_zone_name??
+        null,
+
+      latitude:
+        record.cr1da_latitude ??
+        null,
+
+      longitude:
+        record.cr1da_longitude ??
+        null,
+
+      finalAiRiskScore:
+        record.cr1da_risknumericvalue ??
+        null,
+
+      finalAiRiskCategory:
+        record["cr1da_finalairiskcategory@OData.Community.Display.V1.FormattedValue"] ??
+        (typeof record.cr1da_finalairiskcategory === "string" ? record.cr1da_finalairiskcategory : null) ??
+        null,
+
+      landCoverType:
+        record["cr1da_landcovertype@OData.Community.Display.V1.FormattedValue"] ??
+        (typeof record.cr1da_landcovertype === "string" ? record.cr1da_landcovertype : null) ??
+        null,
+
+      state: record.crf11_state ?? null,
+      station: record["crf11_station@OData.Community.Display.V1.FormattedValue"] ?? record.crf11_station ?? null,
+      rvi: record.cr1da_relativevegetationindex ?? null,
+      ndvi: record.cr1da_normalizeddifferencevegetationind ?? null,
+      vegetationDensity: record["cr1da_vegetationdensity@OData.Community.Display.V1.FormattedValue"] ?? record.cr1da_vegetationdensity ?? null,
+      cloudScore: record.cr1da_cloudscore ?? null,
+      rviTrend3m: record["cr1da_rvitrend3months@OData.Community.Display.V1.FormattedValue"] ?? record.cr1da_rvitrend3months ?? null,
+      ndviTrend3m: record["cr1da_ndvitrend3months@OData.Community.Display.V1.FormattedValue"] ?? record.cr1da_ndvitrend3months ?? null,
+      action: record["cr1da_recommendedaction@OData.Community.Display.V1.FormattedValue"] ?? record.cr1da_recommendedaction ?? null,
+      riskReason: record["cr1da_riskreason@OData.Community.Display.V1.FormattedValue"] ?? record.cr1da_riskreason ?? null,
+      lineType: record["cr1da_linetype@OData.Community.Display.V1.FormattedValue"] ?? record.cr1da_linetype ?? null,
+      lastPruneDate: record.cr1da_lastprunedate ?? null,
+      outageCount12m: record.cr1da_outagecount12months ?? null,
+      operationalRiskCategory: record["cr1da_operationalriskcategory@OData.Community.Display.V1.FormattedValue"] ?? record.cr1da_operationalriskcategory ?? null,
+      aiRiskGroup: record["cr1da_airiskgroup@OData.Community.Display.V1.FormattedValue"] ?? record.cr1da_airiskgroup ?? null,
+      aiRiskScore: record.cr1da_airiskscore ?? null,
+      workOrderStatus: record["cr1da_workorderstatus@OData.Community.Display.V1.FormattedValue"] ?? record.cr1da_workorderstatus ?? null,
+      aiValidation: record["cr1da_aivalidation@OData.Community.Display.V1.FormattedValue"] ?? record.cr1da_aivalidation ?? null,
+
+      modifiedOn:
+        record.modifiedon ??
+        null,
+    })
+  );
 }
 
 export interface WorkFeedback {

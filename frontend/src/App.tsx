@@ -80,17 +80,14 @@ function App() {
             |--------------------------------------------------------------
             */
 
-            try {
-                const healthResponse = await getHealth();
-                setHealth(healthResponse);
-            } catch (error) {
+            void getHealth().then(setHealth).catch((error) => {
                 console.error(
                     "Unable to connect to V-PULSE API:",
                     error
                 );
 
                 setHealth(null);
-            }
+            });
 
             /*
             |--------------------------------------------------------------
