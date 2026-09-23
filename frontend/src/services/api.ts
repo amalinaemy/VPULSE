@@ -4,16 +4,16 @@ const API_BASE_URL =
 // helpful runtime log when troubleshooting local dev
 console.debug("VITE_API_BASE_URL ->", import.meta.env.VITE_API_BASE_URL, "using ->", API_BASE_URL);
 
-export async function apiGet<T>(endpoint: string): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${endpoint}`);
+export async function apiGet<T>(endpoint: string, baseUrl: string = API_BASE_URL): Promise<T> {
+  const response = await fetch(`${baseUrl}${endpoint}`);
 
   if (!response.ok) {
     const error = await response.json().catch(() => null) as
-      | { detail?: string; title?: string }
+      | { message?: string; detail?: string; title?: string }
       | null;
 
     throw new Error(
-      error?.detail ?? error?.title ??
+      error?.message ?? error?.detail ?? error?.title ??
       `API request failed: ${response.status} ${response.statusText}`
     );
   }
@@ -87,7 +87,7 @@ export async function getPoles():
 
   if (!response.ok) {
     const error = await response.json().catch(() => null);
-    throw new Error(error?.message ?? error?.detail ?? `Unable to load pole data (HTTP ${response.status}).`);
+    throw new Error(error?.message ?? error?.message ?? error?.detail ?? `Unable to load pole data (HTTP ${response.status}).`);
   }
 
   const records = await response.json().catch(() => {
@@ -172,7 +172,7 @@ export interface WorkFeedback {
 }
 
 export async function getWorkFeedback(): Promise<WorkFeedback[]> {
-  return apiGet<WorkFeedback[]>("/api/dataverse/work-feedback");
+  return apiGet<WorkFeedback[]>("/api/work-feedback", "");
 }
 
 export type WorkFormValue = string | number | number[] | null;
@@ -182,14 +182,14 @@ export interface WorkFormField {
 }
 export interface WorkFormRecord { id: string | null; version: string | null; fields: WorkFormField[] }
 export function getWorkForm(poleId: string): Promise<WorkFormRecord> {
-  return apiGet(`/api/dataverse/work-form?poleId=${encodeURIComponent(poleId)}`);
+  return apiGet(`/api/work-form?poleId=${encodeURIComponent(poleId)}`, "");
 }
 export async function saveWorkForm(poleId: string, id: string | null, version: string | null, values: Record<string, WorkFormValue>): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/dataverse/work-form?poleId=${encodeURIComponent(poleId)}`, {
+  const response = await fetch(`/api/work-form?poleId=${encodeURIComponent(poleId)}`, {
     method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, version, values }),
   });
   if (!response.ok) {
     const error = await response.json().catch(() => null);
-    throw new Error(error?.detail ?? "Unable to save the work form.");
+    throw new Error(error?.message ?? error?.detail ?? "Unable to save the work form.");
   }
 }

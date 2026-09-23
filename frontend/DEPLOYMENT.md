@@ -20,13 +20,28 @@ Request path: browser GET `/api/poles` -> Vercel function -> Power Automate POST
 Use `vercel dev` from this directory to exercise the API locally with the
 environment variable configured. `npm run dev` serves Vite only.
 
-## Remaining backend endpoints
+## Work feedback and forms
 
-Only pole retrieval currently uses a Power Automate Vercel function. Health,
-work feedback, and work form reads/saves still call the ASP.NET backend through
-`VITE_API_BASE_URL`, which defaults to `http://localhost:5042`.
-For those features in production, set `VITE_API_BASE_URL` to the deployed HTTPS
-backend URL before building and allow the frontend origin in backend CORS.
-Alternatively, migrate those endpoints to additional Vercel functions and flows
-with matching request/response contracts. Deploying `frontend` does not deploy
-the ASP.NET project in `backend/Vpulse.Api`.
+The frontend calls `/api/work-feedback` for trimming progress and
+`/api/work-form?poleId=...` for form reads and saves. Configure these server-side
+variables in Vercel for each relevant deployment environment and redeploy:
+
+- `POWER_AUTOMATE_GET_WORK_FEEDBACK_URL`: POST `{}`. List rows from
+  `cr1da_lvvmmodel`, including `cr1da_feederpolesection`, `crf11_trimmingwork`,
+  and `modifiedon`. Return status 200 with an array or `{ "value": [...] }`.
+  Include the formatted choice label for `crf11_trimmingwork`, or transform
+  each row into `{ "poleId": "P1", "trimmingWork": "Completed", "modifiedOn": "2026-09-23T00:00:00Z" }`.
+  Return all required rows using flow pagination. Feedback is sorted newest first.
+- `POWER_AUTOMATE_GET_WORK_FORM_URL`: POST `{ "poleId": "P1" }`. Return
+  `{ "id": null, "version": null, "fields": [...] }`. Each field must match
+  `WorkFormField` in `src/services/api.ts`, including its name, label, type,
+  required flag, maxLength, options and value. Raw Dataverse List rows output
+  is not the form schema expected by the modal.
+- `POWER_AUTOMATE_SAVE_WORK_FORM_URL`: POST `{ "poleId": "P1", "id": null,
+  "version": null, "values": { ... } }`. Validate and persist the changes before
+  returning success. Configure concurrency/version handling in the flow.
+
+These are separate contracts: the existing poles flow alone does not provide
+feedback or form data. Keep trigger URLs server-side. A trigger requiring OAuth
+also requires server-side token authentication. Deploying `frontend` does not
+deploy the ASP.NET project in `backend/Vpulse.Api`.
