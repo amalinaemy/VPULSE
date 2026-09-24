@@ -19,6 +19,24 @@ async function saveFlowToken(): Promise<string> {
   return data.access_token;
 }
 
+function imageUploads(values: Record<string, any>) {
+  const uploads: { column: string; fileName: string; contentType: string; contentBase64: string }[] = [];
+  for (const column of ['cr1da_gambarsemasaditapak', 'crf11_gambarselepasditapak']) {
+    const value = values[column];
+    if (value == null || value === '') { delete values[column]; continue; }
+    const match = typeof value === 'string' ? /^data:(image\/(?:jpeg|png));base64,([A-Za-z0-9+/]+={0,2})$/.exec(value) : null;
+    if (!match || match[2].length % 4 !== 0) throw new Error('Image uploads must be valid JPG or PNG files.');
+    const bytes = Buffer.from(match[2], 'base64');
+    const valid = match[1] === 'image/png'
+      ? bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))
+      : bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255;
+    if (!valid || bytes.length === 0 || bytes.length > 1.5 * 1024 * 1024) throw new Error('Image uploads must be JPG or PNG files of 1.5 MB or smaller each.');
+    uploads.push({ column, fileName: `${column}.${match[1] === 'image/png' ? 'png' : 'jpg'}`, contentType: match[1], contentBase64: match[2] });
+    delete values[column]; // Avoid duplicating base64 in the request and overwriting images via Update row.
+  }
+  return uploads;
+}
+
 async function assessmentForSave(poleId: string): Promise<Record<string, any>> {
   const url = process.env.POWER_AUTOMATE_GET_POLES_URL;
   if (!url) throw new Error('POWER_AUTOMATE_GET_POLES_URL is required to retrieve locked pole details before saving.');
@@ -212,6 +230,9 @@ export default async function handler(
 
       const lockedFields = new Set(['cr1da_feederpolesection', 'cr1da_feederid', 'cr1da_zone', 'cr1da_gpsautocapture', 'cr1da_gambaraireference']);
       const values: Record<string, any> = Object.fromEntries(Object.entries(submittedValues).filter(([key]) => !lockedFields.has(key.toLowerCase())));
+      let images;
+      try { images = imageUploads(values); }
+      catch (error) { return res.status(400).json({ message: error instanceof Error ? error.message : 'Invalid image upload.' }); }
       const token = await saveFlowToken();
       const pole = await assessmentForSave(poleId);
       const textOrNull = (value: unknown) => value == null || value === '' ? null : String(value);
@@ -235,7 +256,7 @@ export default async function handler(
         remarks: textOrNull(values.cr1da_remarksactiontaken),
         trimmingWork: values.crf11_trimmingwork ?? null,
         // Preserve optional metadata and image values for flows that use them.
-        id: id ?? null, version: version ?? null, values,
+        id: id ?? null, version: version ?? null, values, images,
       };
       const flowResponse = await fetch(flowUrl, {
         method: 'POST',
@@ -277,7 +298,7 @@ export default async function handler(
        */
 
       if (!responseText) {
-
+        if (images.length) return res.status(502).json({ message: 'The form request completed, but image uploads were not confirmed. Configure the image upload actions in SaveWorkForm.' });
         return res.status(200).json({
           success: true,
           message:
@@ -300,12 +321,15 @@ export default async function handler(
           return res.status(502).json({ message: "SaveWorkForm reported a failed save. Check its Response action and Dataverse action in run history." });
         }
 
+        if (images.length && !images.every(image => Array.isArray(data?.uploadedImageColumns) && data.uploadedImageColumns.includes(image.column))) {
+          return res.status(502).json({ message: 'The form request completed, but not all images were confirmed saved. Check the upload actions in SaveWorkForm.' });
+        }
         return res
           .status(200)
           .json(data);
 
       } catch {
-
+        if (images.length) return res.status(502).json({ message: 'SaveWorkForm did not return image upload confirmation. Check its Response action.' });
         return res.status(200).json({
           success: true,
           message:

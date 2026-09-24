@@ -214,8 +214,10 @@ export async function getWorkForm(poleId: string): Promise<WorkFormRecord> {
   return normalizeWorkForm(data, poleId);
 }
 export async function saveWorkForm(poleId: string, id: string | null, version: string | null, values: Record<string, WorkFormValue>): Promise<void> {
+  const body = JSON.stringify({ id, version, values });
+  if (new TextEncoder().encode(body).length > 4_400_000) throw new Error("The form and photos are too large. Choose smaller images and try again.");
   const response = await fetch(`/api/work-form?poleId=${encodeURIComponent(poleId)}`, {
-    method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, version, values }),
+    method: "PUT", headers: { "Content-Type": "application/json" }, body,
   });
   if (!response.ok) {
     const error = await response.json().catch(() => null);

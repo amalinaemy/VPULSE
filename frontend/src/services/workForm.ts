@@ -38,6 +38,6 @@ export function initialWorkFormValues(form: WorkFormRecord, pole: Pole): Record<
 }
 export function editableWorkFormValues(record: WorkFormRecord, values: Record<string, WorkFormValue>) {
     return Object.fromEntries(record.fields
-        .filter(field => !isLockedField(field) && (field.type !== "image" || values[field.name] !== field.value))
+        .filter(field => !isLockedField(field) && (field.type !== "image" || (typeof values[field.name] === "string" && String(values[field.name]).startsWith("data:image/") && values[field.name] !== field.value)))
         .map(field => [field.name, values[field.name] === "" ? null : values[field.name]]));
 }

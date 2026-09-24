@@ -71,12 +71,13 @@ export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
     function readImage(name: string, event: ChangeEvent<HTMLInputElement>) {
         const file = event.target.files?.[0];
         if (!file) return;
-        if (file.size > 4 * 1024 * 1024 || !["image/jpeg", "image/png"].includes(file.type)) {
-            setError("Choose a JPG or PNG image of 4 MB or smaller.");
+        if (file.size > 1.5 * 1024 * 1024 || !["image/jpeg", "image/png"].includes(file.type)) {
+            setError("Choose a JPG or PNG image of 1.5 MB or smaller.");
             event.target.value = "";
             return;
         }
 
+        setError("");
         setReadingImages(count => count + 1);
         const reader = new FileReader();
         reader.onload = () => updateField(name, String(reader.result));
@@ -194,6 +195,7 @@ function FormField({ field, value, onChange, onImageChange }: FormFieldProps) {
                     required={field.required && !locked && !value}
                     onChange={onImageChange}
                 />
+                <small>JPG or PNG, up to 1.5 MB. A selected image replaces this photo when saved.</small>
                 {typeof value === "string" && value.startsWith("data:image/") && (
                     <img src={value} alt={field.label} />
                 )}

@@ -173,6 +173,7 @@ test('save route authenticates, maps the flat schema, and sources locked details
       saveCalls++;savedPayload=JSON.parse(String(options?.body));
       if(mode==='http-error')return Response.json({error:{code:'TriggerInputSchemaMismatch'}},{status:400});
       if(mode==='rejected')return Response.json({success:false});
+      if(mode==='image-ok')return Response.json({success:true,uploadedImageColumns:savedPayload.images.map((image:any)=>image.column)});
       return new Response(null,{status:204});
     };
     assert.equal((await invoke()).code,200);
@@ -184,6 +185,16 @@ test('save route authenticates, maps the flat schema, and sources locked details
     assert.equal(savedPayload.fieldTrimmingRequired,false);
     mode='http-error';let result=await invoke();assert.equal(result.code,502);assert.match(result.body.message,/HTTP 400/);
     mode='rejected';assert.equal((await invoke()).code,502);
+    const png='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aWuQAAAAASUVORK5CYII=';
+    mode='ok';assert.equal((await invoke({...values,cr1da_gambarsemasaditapak:png})).code,502);
+    mode='image-ok';assert.equal((await invoke({...values,cr1da_gambarsemasaditapak:png,crf11_gambarselepasditapak:png})).code,200);
+    assert.equal(savedPayload.images.length,2);
+    assert.equal(savedPayload.images[0].contentBase64,png.split(',')[1]);
+    assert.equal(savedPayload.images[0].column,'cr1da_gambarsemasaditapak');
+    assert.equal('cr1da_gambarsemasaditapak' in savedPayload.values,false);
+    const imageCalls=saveCalls;
+    assert.equal((await invoke({...values,cr1da_gambarsemasaditapak:'data:image/png;base64,YWJjZA=='})).code,400);
+    assert.equal(saveCalls,imageCalls);
     const before=saveCalls;
     delete process.env.POWER_AUTOMATE_CLIENT_SECRET;
     result=await invoke();assert.equal(result.code,500);assert.match(result.body.message,/tenant authentication/);assert.equal(saveCalls,before);
@@ -192,4 +203,26 @@ test('save route authenticates, maps the flat schema, and sources locked details
     globalThis.fetch=oldFetch;
     for(const [key,value] of Object.entries(old)){if(value===undefined)delete process.env[key];else process.env[key]=value;}
   }
+});
+
+
+test('unselected and unchanged image fields are omitted, preserving existing Dataverse photos', async () => {
+  const {editableWorkFormValues,initialWorkFormValues}=await import('../src/services/workForm.ts');
+  const form=normalizeWorkForm({...row,cr1da_gambarsemasaditapak:'existing-image'},'P1');
+  const values=initialWorkFormValues(form,{poleId:'P1'} as any);
+  let payload=editableWorkFormValues(form,values);
+  assert.equal('cr1da_gambarsemasaditapak' in payload,false);
+  assert.equal('crf11_gambarselepasditapak' in payload,false);
+  values.cr1da_gambarsemasaditapak='data:image/png;base64,newimage';
+  payload=editableWorkFormValues(form,values);
+  assert.equal(payload.cr1da_gambarsemasaditapak,values.cr1da_gambarsemasaditapak);
+});
+
+ test('stored Dataverse image base64 is displayed and absent images stay empty', () => {
+  const photo = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB';
+  const form = normalizeWorkForm({...row, cr1da_gambarsemasaditapak: photo}, 'P1');
+  assert.equal(form.fields.find(f => f.name === 'cr1da_gambarsemasaditapak')?.value, 'data:image/png;base64,' + photo);
+  assert.equal(form.fields.find(f => f.name === 'crf11_gambarselepasditapak')?.value, null);
+  const metadata = normalizeWorkForm(form, 'P1');
+  assert.deepEqual(metadata, form);
 });

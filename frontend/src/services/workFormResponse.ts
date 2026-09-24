@@ -75,9 +75,28 @@ export function feedbackFromWorkForm(data: unknown, poleId: string): WorkFeedbac
   return [{ poleId, trimmingWork: status ?? null, modifiedOn: typeof record.modifiedon === 'string' ? record.modifiedon : null }];
 }
 
+// Dataverse returns image columns as base64, without a browser data-URL prefix.
+export function imagePreview(value: unknown): string | null {
+  if (value == null || value === '') return null;
+  if (typeof value === 'object' && !Array.isArray(value)) {
+    value = (value as Record<string, unknown>)['$content'];
+  }
+  if (typeof value !== 'string') return null;
+  const raw = value.trim();
+  const encoded = raw.replace(/^data:image\/(?:jpeg|png|gif|webp);base64,/i, '').replace(/\s/g, '');
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(encoded)) return null;
+  const mime = encoded.startsWith('/9j/') ? 'jpeg' : encoded.startsWith('iVBORw0KGgo') ? 'png'
+    : encoded.startsWith('R0lGOD') ? 'gif' : encoded.startsWith('UklGR') ? 'webp' : null;
+  return mime ? `data:image/${mime};base64,${encoded}` : null;
+}
+
 export function normalizeWorkForm(data: unknown, poleId: string): WorkFormRecord {
   const record = recordOf(data);
-  if (Array.isArray(record.fields)) return data as WorkFormRecord;
+  if (Array.isArray(record.fields)) return {
+    ...(data as WorkFormRecord),
+    fields: (data as WorkFormRecord).fields.map(field => field.type === 'image'
+      ? { ...field, value: imagePreview(field.value) } : field),
+  };
   if (record.found !== false && !('cr1da_feederpolesection' in record)) {
     throw new Error('GetWorkForm did not return a recognized Dataverse work record.');
   }
@@ -103,7 +122,7 @@ export function normalizeWorkForm(data: unknown, poleId: string): WorkFormRecord
     }
     return {
       name, label, type, required: false, maxLength: null, options: null,
-      value: raw == null ? null : type === 'date' ? String(raw).slice(0, 10) : String(raw),
+      value: type === 'image' ? imagePreview(raw) : raw == null ? null : type === 'date' ? String(raw).slice(0, 10) : String(raw),
     };
   });
   return {
