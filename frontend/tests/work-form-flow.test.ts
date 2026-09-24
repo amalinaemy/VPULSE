@@ -14,12 +14,13 @@ test('raw records and not-found responses normalize without inventing choice cod
   assert.equal(feedbackFromWorkForm(row, 'P1')[0].trimmingWork, 'Completed');
   assert.deepEqual(feedbackFromWorkForm({found:false}, 'P1'), []);
   assert.throws(() => feedbackFromWorkForm({...row, cr1da_feederpolesection:'P2'}, 'P1'), /different pole/);
-  assert.throws(() => feedbackFromWorkForm({crf11_trimmingwork:1}, 'P1'), /formatted label/);
+  assert.equal(feedbackFromWorkForm({crf11_trimmingwork:1}, 'P1')[0].trimmingWork, 'In Progress');
+  assert.throws(() => feedbackFromWorkForm({crf11_trimmingwork:99}, 'P1'), /formatted label/);
   const form = normalizeWorkForm(row,'P1');
   assert.equal(form.id,'record-id'); assert.equal(form.version,'W/"2"');
   assert.equal(form.fields.find(f=>f.name==='cr1da_inspectiondate')?.value,'2026-09-23');
-  assert.equal(form.fields.find(f=>f.name==='crf11_trimmingwork')?.readOnly,true);
-  assert.equal(form.fields.find(f=>f.name==='crf11_trimmingwork')?.value,'Completed');
+  assert.notEqual(form.fields.find(f=>f.name==='crf11_trimmingwork')?.readOnly,true);
+  assert.equal(form.fields.find(f=>f.name==='crf11_trimmingwork')?.value,1);
   assert.equal(normalizeWorkForm({found:false},'P1').fields[0].value,'P1');
 });
 
@@ -124,4 +125,25 @@ test('assessment details override saved work details and a missing street is exc
   const payload=editableWorkFormValues(form,values);
   assert.equal(payload.cr1da_remarksactiontaken,'New remarks');
   for(const name of ['cr1da_feederpolesection','cr1da_feederid','cr1da_zone','cr1da_gpsautocapture','cr1da_gambaraireference'])assert.equal(name in payload,false);
+});
+
+test('all five supplied choice mappings are editable and submit numeric values including zero', async () => {
+  const {workFormChoices}=await import('../src/services/workFormResponse.ts');
+  const {initialWorkFormValues,editableWorkFormValues,isLockedField}=await import('../src/services/workForm.ts');
+  const form=normalizeWorkForm({found:false},'P1');
+  const values=initialWorkFormValues(form,{poleId:'P1',streetName:null} as any);
+  const expected:Record<string,number[]>={cr1da_aiconfirmedenroachment:[0,1,2],cr1da_fieldtrimmingrequired:[0,1],crf11_trimmingwork:[0,1,2],cr1da_inspectionstatus:[0,1,2,3,4],cr1da_risklevel:[0,1,2,3]};
+  for(const [name,codes] of Object.entries(expected)){
+    const field=form.fields.find(f=>f.name===name)!;
+    assert.equal(field.type,'choice');assert.equal(isLockedField(field),false);
+    assert.deepEqual(workFormChoices[name].map(o=>o.value),codes);
+    for(const code of codes){
+      values[name]=code;
+      assert.equal(editableWorkFormValues(form,values)[name],code);
+    }
+  }
+  assert.equal('cr1da_zone' in editableWorkFormValues(form,values),false);
+  const existing=normalizeWorkForm({...row,cr1da_fieldtrimmingrequired:false,cr1da_inspectionstatus:0},'P1');
+  assert.equal(existing.fields.find(f=>f.name==='cr1da_fieldtrimmingrequired')?.value,0);
+  assert.equal(existing.fields.find(f=>f.name==='cr1da_inspectionstatus')?.value,0);
 });

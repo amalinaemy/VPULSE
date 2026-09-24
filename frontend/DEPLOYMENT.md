@@ -37,10 +37,12 @@ the pole filter and `$top: 1` in GetWorkForm.
 - `/api/work-form?poleId=P1` loads the selected pole. The frontend converts the raw
   row to form fields and preserves the Dataverse row ID and ETag. Include the
   primary key `cr1da_lvvmmodelid` and formatted choice annotations in the response.
-- Raw records contain only current choice values, not all allowed option codes.
-  Such choice fields display their current labels read-only. A response using the
-  existing `{ id, version, fields }` contract with complete options supports
-  editable choice controls. No option values are guessed.
+- The five choice fields are editable dropdowns using the Dataverse numeric
+  mappings supplied by the user in `src/services/workFormResponse.ts`.
+  Field Trimming Required maps false/No to 0 and true/Yes to 1. SaveWorkForm
+  continues receiving numeric values in `values`; no live records are changed
+  by automated tests. Only the five assessment pole details remain locked.
+
 
 The flow's Dataverse query must use actual column logical names, such as
 `cr1da_feederpolesection` and `crf11_trimmingwork`. Ensure one HTTP Response

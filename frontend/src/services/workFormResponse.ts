@@ -7,6 +7,28 @@ interface WorkFormField {
 interface WorkFormRecord { found?: boolean; id: string | null; version: string | null; fields: WorkFormField[] }
 
 const formattedSuffix = '@odata.community.display.v1.formattedvalue';
+// Dataverse choice values supplied by the user. AI labels use the visible, unambiguous text.
+export const workFormChoices: Record<string, { value: number; label: string }[]> = {
+  cr1da_aiconfirmedenroachment: [
+    { value: 0, label: 'AI Correct - vegetation risk confirmed' },
+    { value: 1, label: 'AI Partially Correct' },
+    { value: 2, label: 'AI False Positive' },
+  ],
+  cr1da_fieldtrimmingrequired: [{ value: 0, label: 'No' }, { value: 1, label: 'Yes' }],
+  crf11_trimmingwork: [
+    { value: 0, label: 'Completed' }, { value: 1, label: 'In Progress' }, { value: 2, label: 'Not Started' },
+  ],
+  cr1da_inspectionstatus: [
+    { value: 0, label: 'Inspection Completed' }, { value: 1, label: 'Trimming Completed' },
+    { value: 2, label: 'Access Issue' }, { value: 3, label: 'No Vegetation Found' },
+    { value: 4, label: 'Escalate for Shutdown' },
+  ],
+  cr1da_risklevel: [
+    { value: 0, label: 'Critical - within 1m' }, { value: 1, label: 'High - 1m to 2m' },
+    { value: 2, label: 'Medium - monitor' }, { value: 3, label: 'Low - normal' },
+  ],
+};
+
 const fieldDefinitions = [
   ['cr1da_feederpolesection', 'Pole ID', 'text'],
   ['cr1da_feederid', 'Feeder ID', 'text'],
@@ -42,6 +64,7 @@ export function feedbackFromWorkForm(data: unknown, poleId: string): WorkFeedbac
   } else if (!('cr1da_feederpolesection' in record) && !('crf11_trimmingwork' in record)) {
     throw new Error('GetWorkForm returned an unrecognized work record.');
   }
+  if (typeof status === 'number') status = workFormChoices.crf11_trimmingwork.find(option => option.value === status)?.label ?? status;
   if (status != null && typeof status !== 'string') {
     throw new Error('GetWorkForm returned a numeric trimming choice without its formatted label. Include the Dataverse formatted values in the Response.');
   }
@@ -65,11 +88,19 @@ export function normalizeWorkForm(data: unknown, poleId: string): WorkFormRecord
   const fields: WorkFormField[] = fieldDefinitions.map(([name, label, type]) => {
     const raw = name === 'cr1da_feederpolesection' ? poleId : record[name] ?? null;
     const formatted = record[name + formattedSuffix];
-    // A raw row has no choice metadata. Display its current label without inventing option codes.
-    if (type === 'choice') return {
-      name, label, type: 'text', required: false, maxLength: null, options: null,
-      value: formatted == null ? (raw == null ? '' : String(raw)) : String(formatted), readOnly: true,
-    };
+    if (type === 'choice') {
+      const options = workFormChoices[name];
+      const numeric = typeof raw === 'boolean' ? Number(raw)
+        : typeof raw === 'number' ? raw
+        : typeof raw === 'string' && /^\d+$/.test(raw) ? Number(raw) : null;
+      const selected = options.find(option => option.value === numeric)
+        ?? options.find(option => option.label.toLowerCase() === String(raw ?? formatted ?? '').toLowerCase());
+      if (raw != null && !selected) throw new Error(`Unrecognized ${label} value returned by GetWorkForm.`);
+      return {
+        name, label, type: 'choice', required: false, maxLength: null,
+        options, value: selected?.value ?? null,
+      };
+    }
     return {
       name, label, type, required: false, maxLength: null, options: null,
       value: raw == null ? null : type === 'date' ? String(raw).slice(0, 10) : String(raw),
