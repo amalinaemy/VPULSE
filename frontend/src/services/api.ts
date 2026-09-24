@@ -191,7 +191,15 @@ export async function getWorkFeedback(poleIds: string[], signal?: AbortSignal): 
       const cached = feedbackCache.get(id);
       if (cached && cached.expires > Date.now()) { result[index] = cached.data; continue; }
       try {
-        const response = await fetch(`/api/work-feedback?poleId=${encodeURIComponent(id)}`, { signal });
+        let response = await fetch(`/api/work-feedback?poleId=${encodeURIComponent(id)}`, { signal });
+        if ([429, 502, 503, 504].includes(response.status)) {
+          const failure = await response.clone().json().catch(() => null);
+          if (failure?.retryable !== false) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            signal?.throwIfAborted();
+            response = await fetch(`/api/work-feedback?poleId=${encodeURIComponent(id)}`, { signal });
+          }
+        }
         const data = await readApiResponse(response);
         if (!Array.isArray(data)) throw new Error('Invalid trimming data response.');
         feedbackCache.set(id, { expires: Date.now() + 300000, data });
@@ -199,7 +207,7 @@ export async function getWorkFeedback(poleIds: string[], signal?: AbortSignal): 
       } catch (error) { failed = true; throw error; }
     }
   }
-  await Promise.all(Array.from({ length: Math.min(4, ids.length) }, worker));
+  await Promise.all(Array.from({ length: Math.min(2, ids.length) }, worker));
   return result.flat();
 }
 
