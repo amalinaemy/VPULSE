@@ -148,29 +148,47 @@ test('all five supplied choice mappings are editable and submit numeric values i
   assert.equal(existing.fields.find(f=>f.name==='cr1da_inspectionstatus')?.value,0);
 });
 
-test('save flow gets numeric choices intact and exposes upstream error codes without reporting success', async () => {
+test('save route authenticates, maps the flat schema, and sources locked details from assessment', async () => {
   const {default:saveHandler}=await import('../api/work-form.ts');
-  const oldFetch=globalThis.fetch,oldUrl=process.env.POWER_AUTOMATE_SAVE_WORK_FORM_URL;
-  const values={cr1da_inspectionstatus:0,cr1da_fieldtrimmingrequired:1,crf11_trimmingwork:2};
+  const oldFetch=globalThis.fetch;
+  const configured={POWER_AUTOMATE_TENANT_ID:'test-tenant',POWER_AUTOMATE_CLIENT_ID:'test-client',POWER_AUTOMATE_CLIENT_SECRET:'test-secret',POWER_AUTOMATE_SAVE_WORK_FORM_URL:'https://example.invalid/save',POWER_AUTOMATE_GET_POLES_URL:'https://example.invalid/poles'};
+  const old=Object.fromEntries(Object.keys(configured).map(key=>[key,process.env[key]]));
+  const values={cr1da_inspectionstatus:0,cr1da_fieldtrimmingrequired:1,crf11_trimmingwork:2,cr1da_zone:'tampered street'};
   async function invoke(input:unknown=values){
     const res:any={code:0,body:null,status(c:number){this.code=c;return this;},json(b:unknown){this.body=b;return this;}};
-    await saveHandler({method:'PUT',query:{poleId:'P1'},body:{id:'record-id',version:'W/"2"',values:input}},res);return res;
+    await saveHandler({method:'PUT',query:{poleId:'P1'},body:{id:'record-id',version:'v2',values:input}},res);return res;
   }
+  let savedPayload:any,saveCalls=0,mode='ok';
   try{
-    process.env.POWER_AUTOMATE_SAVE_WORK_FORM_URL='https://example.invalid/save';
+    Object.assign(process.env,configured);
     globalThis.fetch=async(url,options)=>{
-      assert.equal(url,'https://example.invalid/save');
-      assert.deepEqual(JSON.parse(String(options?.body)),{poleId:'P1',id:'record-id',version:'W/"2"',values});
-      return Response.json({error:{code:'TriggerInputSchemaMismatch'}},{status:400});
+      if(String(url).includes('login.microsoftonline.com')){
+        assert.equal((options?.body as URLSearchParams).get('scope'),'https://service.flow.microsoft.com/.default');
+        return Response.json({access_token:'mock-token'});
+      }
+      if(url===configured.POWER_AUTOMATE_GET_POLES_URL)return Response.json([{cr1da_poleidentifier:'P1',cr1da_feederidentifier:'F1',cr1da_zone:null,cr1da_latitude:0,cr1da_longitude:101.4}]);
+      assert.equal(url,configured.POWER_AUTOMATE_SAVE_WORK_FORM_URL);
+      assert.equal((options?.headers as Record<string,string>).Authorization,'Bearer mock-token');
+      saveCalls++;savedPayload=JSON.parse(String(options?.body));
+      if(mode==='http-error')return Response.json({error:{code:'TriggerInputSchemaMismatch'}},{status:400});
+      if(mode==='rejected')return Response.json({success:false});
+      return new Response(null,{status:204});
     };
-    const result=await invoke();assert.equal(result.code,502);assert.match(result.body.message,/HTTP 400 \(TriggerInputSchemaMismatch\)/);
-    globalThis.fetch=async()=>Response.json({success:false});
-    assert.equal((await invoke()).code,502);
-    globalThis.fetch=async()=>new Response(null,{status:204});
     assert.equal((await invoke()).code,200);
+    assert.equal(savedPayload.poleId,'P1');assert.equal(savedPayload.feederId,'F1');
+    assert.equal(savedPayload.streetName,null);assert.equal(savedPayload.latitude,'0');
+    assert.equal(savedPayload.inspectionStatus,0);assert.equal(savedPayload.fieldTrimmingRequired,true);
+    assert.equal(savedPayload.trimmingWork,2);
+    assert.equal((await invoke({...values,cr1da_fieldtrimmingrequired:0})).code,200);
+    assert.equal(savedPayload.fieldTrimmingRequired,false);
+    mode='http-error';let result=await invoke();assert.equal(result.code,502);assert.match(result.body.message,/HTTP 400/);
+    mode='rejected';assert.equal((await invoke()).code,502);
+    const before=saveCalls;
+    delete process.env.POWER_AUTOMATE_CLIENT_SECRET;
+    result=await invoke();assert.equal(result.code,500);assert.match(result.body.message,/tenant authentication/);assert.equal(saveCalls,before);
     assert.equal((await invoke([])).code,400);
   }finally{
     globalThis.fetch=oldFetch;
-    if(oldUrl===undefined)delete process.env.POWER_AUTOMATE_SAVE_WORK_FORM_URL;else process.env.POWER_AUTOMATE_SAVE_WORK_FORM_URL=oldUrl;
+    for(const [key,value] of Object.entries(old)){if(value===undefined)delete process.env[key];else process.env[key]=value;}
   }
 });

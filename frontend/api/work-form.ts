@@ -1,3 +1,35 @@
+async function saveFlowToken(): Promise<string> {
+  const tenant = process.env.POWER_AUTOMATE_TENANT_ID;
+  const clientId = process.env.POWER_AUTOMATE_CLIENT_ID;
+  const clientSecret = process.env.POWER_AUTOMATE_CLIENT_SECRET;
+  if (!tenant || !clientId || !clientSecret) {
+    throw new Error('SaveWorkForm requires tenant authentication. Configure POWER_AUTOMATE_TENANT_ID, POWER_AUTOMATE_CLIENT_ID and POWER_AUTOMATE_CLIENT_SECRET in Vercel.');
+  }
+  if (!/^[a-zA-Z0-9.-]+$/.test(tenant)) throw new Error('Invalid POWER_AUTOMATE_TENANT_ID configuration.');
+  const response = await fetch(`https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`, {
+    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'client_credentials', client_id: clientId,
+      client_secret: clientSecret, scope: 'https://service.flow.microsoft.com/.default' }),
+  });
+  const data: any = await response.json().catch(() => null);
+  if (!response.ok || typeof data?.access_token !== 'string') {
+    throw new Error('Unable to authenticate SaveWorkForm. Check the Entra application credentials and tenant in Vercel.');
+  }
+  return data.access_token;
+}
+
+async function assessmentForSave(poleId: string): Promise<Record<string, any>> {
+  const url = process.env.POWER_AUTOMATE_GET_POLES_URL;
+  if (!url) throw new Error('POWER_AUTOMATE_GET_POLES_URL is required to retrieve locked pole details before saving.');
+  const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+  const data: any = await response.json().catch(() => null);
+  const rows = Array.isArray(data) ? data : data?.value;
+  if (!response.ok || !Array.isArray(rows)) throw new Error('Unable to retrieve assessment pole details. No work form was saved.');
+  const matches = rows.filter(row => typeof row?.cr1da_poleidentifier === 'string' && row.cr1da_poleidentifier.trim().toLowerCase() === poleId.trim().toLowerCase());
+  if (matches.length !== 1) throw new Error('A unique assessment pole record is required. No work form was saved.');
+  return matches[0];
+}
+
 
 
 export default async function handler(
@@ -160,13 +192,13 @@ export default async function handler(
       const {
         id,
         version,
-        values
+        values: submittedValues
       } = req.body ?? {};
 
 
       if (
-        !values ||
-        typeof values !== "object" || Array.isArray(values)
+        !submittedValues ||
+        typeof submittedValues !== "object" || Array.isArray(submittedValues)
       ) {
 
         return res.status(400).json({
@@ -177,39 +209,38 @@ export default async function handler(
       }
 
 
-      /*
-      |--------------------------------------------------------------------------
-      | Send to Power Automate
-      |--------------------------------------------------------------------------
-      */
-
-      const flowResponse =
-        await fetch(
-          flowUrl,
-          {
-            method: "POST",
-
-            headers: {
-              "Content-Type":
-                "application/json"
-            },
-
-            body:
-              JSON.stringify({
-
-                poleId,
-
-                id:
-                  id ?? null,
-
-                version:
-                  version ?? null,
-
-                values
-              })
-          }
-        );
-
+      const lockedFields = new Set(['cr1da_feederpolesection', 'cr1da_feederid', 'cr1da_zone', 'cr1da_gpsautocapture', 'cr1da_gambaraireference']);
+      const values: Record<string, any> = Object.fromEntries(Object.entries(submittedValues).filter(([key]) => !lockedFields.has(key.toLowerCase())));
+      const token = await saveFlowToken();
+      const pole = await assessmentForSave(poleId);
+      const textOrNull = (value: unknown) => value == null || value === '' ? null : String(value);
+      const flag = values.cr1da_fieldtrimmingrequired;
+      if (![undefined, null, '', 0, 1, false, true].includes(flag)) {
+        return res.status(400).json({ message: 'Field Trimming Required must be Yes or No.' });
+      }
+      // Match the flat SaveWorkForm trigger schema; use trusted assessment values for locked details.
+      const payload = {
+        poleId,
+        feederId: textOrNull(pole.cr1da_feederidentifier),
+        streetName: textOrNull(pole.cr1da_zone),
+        latitude: textOrNull(pole.cr1da_latitude),
+        longitude: textOrNull(pole.cr1da_longitude),
+        inspectionDate: textOrNull(values.cr1da_inspectiondate),
+        inspectionStatus: values.cr1da_inspectionstatus ?? null,
+        riskLevel: values.cr1da_risklevel ?? null,
+        aiConfirmedEncroachment: values.cr1da_aiconfirmedenroachment ?? null,
+        fieldTrimmingRequired: flag == null || flag === '' ? null : flag === 1 || flag === true,
+        contractorName: textOrNull(values.cr1da_namapegawaicontractors),
+        remarks: textOrNull(values.cr1da_remarksactiontaken),
+        trimmingWork: values.crf11_trimmingwork ?? null,
+        // Preserve optional metadata and image values for flows that use them.
+        id: id ?? null, version: version ?? null, values,
+      };
+      const flowResponse = await fetch(flowUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload),
+      });
 
       /*
       |--------------------------------------------------------------------------
@@ -282,15 +313,13 @@ export default async function handler(
 
     } catch (error) {
 
-      console.error(
-        "Save Work Form API error:",
-        error
-      );
+      // Never log credentials, access tokens or trigger URLs.
+      const message = error instanceof Error && /^(SaveWorkForm requires|Invalid POWER_|Unable to authenticate|POWER_AUTOMATE_GET_POLES_URL|Unable to retrieve assessment|A unique assessment)/.test(error.message)
+        ? error.message : "Unable to connect to the Save Work Form flow.";
 
 
       return res.status(500).json({
-        message:
-          "Unable to connect to the Save Work Form flow."
+        message
       });
 
     }

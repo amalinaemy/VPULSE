@@ -51,3 +51,29 @@ Trigger URLs remain server-side. If the HTTP trigger requires OAuth, server-side
 OAuth authentication must also be configured.
 
 Tests: `node --experimental-strip-types --test tests/work-form-flow.test.ts`.
+
+## Tenant-protected SaveWorkForm
+
+The save flow uses `triggerAuthenticationType: Tenant`. Keep that restriction.
+Configure these server-only Production variables in Vercel, using an Entra
+application/service principal in the same tenant as the flow:
+
+- `POWER_AUTOMATE_TENANT_ID`: directory/tenant ID.
+- `POWER_AUTOMATE_CLIENT_ID`: application/client ID.
+- `POWER_AUTOMATE_CLIENT_SECRET`: client secret value (not the secret ID).
+
+Never prefix these names with `VITE_` or commit their values. Redeploy after
+configuration changes. The API requests an application token for
+`https://service.flow.microsoft.com/.default` and sends it as a Bearer token.
+If the trigger restricts specific callers, its allowed list must include the
+service principal object ID. See Microsoft's HTTP trigger OAuth documentation:
+https://learn.microsoft.com/en-us/power-automate/oauth-authentication
+
+The API now maps form fields to the flow's flat schema (`inspectionStatus`,
+`riskLevel`, `aiConfirmedEncroachment`, `fieldTrimmingRequired`, `contractorName`,
+`inspectionDate`, `remarks`, `trimmingWork`). Field Trimming Required is boolean;
+other choices retain their numeric values, including zero. Pole details are read
+server-side from the assessment flow; a missing street is sent as null. Existing
+`id`, `version` and editable `values` are retained as optional extra properties.
+Live save testing requires a user-approved real form submission; mocked tests
+exercise the token exchange and payload without changing Dataverse rows.
