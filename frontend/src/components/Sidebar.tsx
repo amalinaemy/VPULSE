@@ -17,7 +17,7 @@ export function Sidebar({ activeView, isOpen, onClose, onViewChange }: SidebarPr
             <div className="sidebar-top">
                 <div className="brand">
                     <div className="brand-logo-row"><img src={logoTnb} alt="TNB" /><span className="brand-kicker">Prototype model</span></div>
-                    <strong>LV Lines<br />Vegetation<br />Risk Engine</strong>
+                    <strong>Overhead Lines<br />Vegetation<br />Risk Engine</strong>
                 </div>
                 <button className="sidebar-close" type="button" onClick={onClose} aria-label="Close menu">×</button>
             </div>
