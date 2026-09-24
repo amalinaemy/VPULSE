@@ -1,3 +1,5 @@
+import { StateFilter } from "../components/StateFilter";
+import { useStateFilter } from "../services/useStateFilter";
 import { WorkFormModal } from "../components/WorkFormModal";
 import { trimmingWorkStatus } from "../services/trimmingWork";
 import { useEffect, useMemo, useState } from "react";
@@ -21,7 +23,8 @@ type TrimmingFilter = "All" | TrimmingStatus;
 type RiskFilter = "All" | "CRITICAL" | "HIGH";
 const pageSize = 10;
 
-export function FieldTeamPage({ poles, workFeedback, isLoading, error, onWorkFormSaved, feedbackLoading, feedbackError, onRefreshFeedback }: FieldTeamPageProps) {
+export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error, onWorkFormSaved, feedbackLoading, feedbackError, onRefreshFeedback }: FieldTeamPageProps) {
+    const { poles, states, selection, setSelection } = useStateFilter(allPoles);
     const feedbackUnavailable = feedbackLoading || !!feedbackError;
     const [formPole, setFormPole] = useState<Pole | null>(null);
     const [trimmingFilter, setTrimmingFilter] = useState<TrimmingFilter>("All");
@@ -136,6 +139,7 @@ export function FieldTeamPage({ poles, workFeedback, isLoading, error, onWorkFor
             <p>Execution-focused view for task selection, route opening, completion status and evidence collection.</p>
             <div className="pill-row"><span>Field validation</span></div>
         </section>
+        <StateFilter states={states} selection={selection} count={poles.length} onChange={value => { setSelection(value); setPage(1); setSelectedPole(null); setTargetPoleId(null); }} />
         <section className="metrics field-team-metrics">
             <FieldMetric label="Today Work Pack" value={priorityPoles.length} note="Critical + High tasks" />
             <FieldMetric label="Completed" value={feedbackUnavailable ? "—" : statusCounts.Completed} note="Trimming work completed" accent="green" />

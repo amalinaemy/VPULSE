@@ -1,3 +1,5 @@
+import { StateFilter } from "../components/StateFilter";
+import { useStateFilter } from "../services/useStateFilter";
 import { poleTrimmingStatus } from "../services/trimmingWork";
 import { useMemo, useState } from "react";
 import type { Pole, WorkFeedback } from "../services/api";
@@ -7,7 +9,8 @@ import { EngineerHierarchyTable } from "../components/EngineerHierarchyTable";
 const riskLevels = ["CRITICAL", "HIGH", "MEDIUM", "LOW"] as const;
 type RiskCategory = typeof riskLevels[number];
 
-export function EngineerPage({ poles, workFeedback, isLoading, error }: { poles: Pole[]; workFeedback: WorkFeedback[]; isLoading: boolean; error: string | null }) {
+export function EngineerPage({ poles: allPoles, workFeedback, isLoading, error }: { poles: Pole[]; workFeedback: WorkFeedback[]; isLoading: boolean; error: string | null }) {
+    const { poles, states, selection, setSelection } = useStateFilter(allPoles);
     const [selectedPole, setSelectedPole] = useState<Pole | null>(null);
     const [hierarchyTarget, setHierarchyTarget] = useState<{ pole: Pole; request: number } | null>(null);
 
@@ -29,10 +32,12 @@ export function EngineerPage({ poles, workFeedback, isLoading, error }: { poles:
             <p>Map-first risk triage with feeder ranking, live Dataverse pole markers and work-order-ready actions.</p>
             <div className="pill-row"><span>Esri Satellite default</span><span>Risk-layer filtering</span></div>
         </section>
+        <StateFilter states={states} selection={selection} count={poles.length} onChange={value => { setSelection(value); setSelectedPole(null); setHierarchyTarget(null); }} />
         {!isLoading && !error && poles.length > 0 && <section className="risk-insights" aria-label="Risk overview"><div className="risk-summary-cards">
             {riskLevels.map((category) => <article className={`risk-summary-card risk-${category.toLowerCase()}`} key={category}><span>{category}</span><strong>{riskSummary[category]}</strong><small>poles</small></article>)}
         </div></section>}
         {!isLoading && !error && poles.length > 0 && <GeospatialAnalysis poles={poles} onSelectPole={openPoleRecord} onViewDetails={setSelectedPole} />}
+        {!isLoading && !error && poles.length === 0 && <p role="status">No poles match the selected states.</p>}
         <EngineerHierarchyTable workFeedback={workFeedback} poles={poles} isLoading={isLoading} error={error} targetRequest={hierarchyTarget} />
                 {selectedPole && <PoleDetailsModal workFeedback={workFeedback} pole={selectedPole} onClose={() => setSelectedPole(null)} />}
             </>;
