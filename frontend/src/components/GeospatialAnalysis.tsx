@@ -21,7 +21,7 @@ export function GeospatialAnalysis({ poles, showFeederRanking = true, onSelectPo
         .sort((first, second) => riskScore(second) - riskScore(first))
         .slice(0, 5), [poles, selectedFeeder]);
 
-    if (mapPoles.length === 0) return null;
+
 
     return <section className={`geospatial-section${showFeederRanking ? "" : " map-only"}`} aria-label="Engineer geospatial analysis">
         <article className="map-card">
@@ -30,21 +30,21 @@ export function GeospatialAnalysis({ poles, showFeederRanking = true, onSelectPo
                 <div className="map-card-tools"><label>Risk filter<select value={riskFilter} onChange={(event) => setRiskFilter(event.target.value as "ALL" | RiskCategory)}><option value="ALL">All risk</option>{categories.map((category) => <option key={category} value={category}>{category}</option>)}</select></label><button className="map-info-button" type="button" aria-label="Map interaction help">i<span>Click marker for details.<br />Double-click marker to open Google Maps.</span></button></div>
             </div>
             <div className="map-frame">
-                <MapContainer center={[3.273, 101.36]} zoom={13} scrollWheelZoom className="pole-map">
+                {mapPoles.length === 0 ? <p role="status">No poles with coordinates match these filters.</p> : <MapContainer center={[3.273, 101.36]} zoom={13} scrollWheelZoom className="pole-map">
                     <TileLayer attribution='&copy; Esri, Maxar, Earthstar Geographics' url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" />
                     <FitMapToPoles poles={mapPoles} />
                     {mapPoles.map((pole, index) => <Marker key={`${pole.poleId ?? "pole"}-${index}`} position={[Number(pole.latitude), Number(pole.longitude)]} icon={poleIcon(riskLevel(pole), markerNumber(pole))} eventHandlers={{ click: () => setSelectedPole(pole), dblclick: () => openGoogleMaps(pole) }}>
                         <Tooltip direction="top" offset={[0, -14]}>{pole.poleId ?? "Unnamed pole"}</Tooltip>
                     </Marker>)}
-                </MapContainer>
+                </MapContainer>}
                 <div className="map-legend">{categories.map((category) => <span key={category} className={`map-legend-${category.toLowerCase()}`}><i />{category[0]}{category.slice(1).toLowerCase()}</span>)}</div>
-                {selectedPole && <PoleDetails pole={selectedPole} onClose={() => setSelectedPole(null)} onViewDetails={onViewDetails} />}
+                {selectedPole && mapPoles.includes(selectedPole) && <PoleDetails pole={selectedPole} onClose={() => setSelectedPole(null)} onViewDetails={onViewDetails} />}
             </div>
         </article>
         {showFeederRanking && <article className="feeder-ranking-card">
             <p>Feeder analysis</p><h3>Feeder Priority Ranking</h3><span>Ranked by critical-pole count, then highest risk score.</span>
             <ol>{feederRanking.map((feeder, index) => <li key={feeder.id}><button className={`feeder-rank-button${selectedFeeder === feeder.id ? " is-selected" : ""}`} type="button" onClick={() => setSelectedFeeder((current) => current === feeder.id ? null : feeder.id)}><span><b>{index + 1}. {feeder.id}</b><small>{feeder.poleCount} poles · {feeder.criticalCount} critical</small></span><strong title="Highest pole risk score in this feeder">{feeder.maxScore >= 0 ? feeder.maxScore : "—"}</strong></button></li>)}</ol>
-            {selectedFeeder !== null && <section className="feeder-urgent-list" aria-live="polite"><div><p>Urgent poles</p><h4>{selectedFeeder}</h4></div>{urgentFeederPoles.length === 0 ? <span className="no-critical-poles">No Critical poles in this feeder.</span> : <ol>{urgentFeederPoles.map((pole, index) => <li key={`${pole.poleId ?? "pole"}-${index}`}><button className="urgent-pole-button" type="button" onClick={() => onSelectPole?.(pole)} disabled={!onSelectPole}><span><b>{pole.poleId ?? "Unnamed pole"}</b><small>{pole.landCoverType ?? "Unknown land cover"}</small></span><strong>{pole.finalAiRiskScore ?? "—"}</strong></button></li>)}</ol>}</section>}
+            {selectedFeeder !== null && feederRanking.some(feeder => feeder.id === selectedFeeder) && <section className="feeder-urgent-list" aria-live="polite"><div><p>Urgent poles</p><h4>{selectedFeeder}</h4></div>{urgentFeederPoles.length === 0 ? <span className="no-critical-poles">No Critical poles in this feeder.</span> : <ol>{urgentFeederPoles.map((pole, index) => <li key={`${pole.poleId ?? "pole"}-${index}`}><button className="urgent-pole-button" type="button" onClick={() => onSelectPole?.(pole)} disabled={!onSelectPole}><span><b>{pole.poleId ?? "Unnamed pole"}</b><small>{pole.landCoverType ?? "Unknown land cover"}</small></span><strong>{pole.finalAiRiskScore ?? "—"}</strong></button></li>)}</ol>}</section>}
         </article>}
     </section>;
 }
@@ -53,12 +53,12 @@ function FitMapToPoles({ poles }: { poles: Pole[] }) {
     const map = useMap();
     useEffect(() => {
         const bounds = latLngBounds(poles.map((pole) => [Number(pole.latitude), Number(pole.longitude)] as [number, number]));
-        map.fitBounds(bounds, { padding: [28, 28], maxZoom: 16 });
+        map.fitBounds(bounds, { padding: [28, 28], maxZoom: 16, animate: false });
     }, [map, poles]);
     return null;
 }
 
-function hasCoordinates(pole: Pole) { return Number.isFinite(Number(pole.latitude)) && Number.isFinite(Number(pole.longitude)); }
+function hasCoordinates(pole: Pole) { return pole.latitude != null && pole.longitude != null && Number.isFinite(Number(pole.latitude)) && Number.isFinite(Number(pole.longitude)) && Math.abs(Number(pole.latitude)) <= 90 && Math.abs(Number(pole.longitude)) <= 180; }
 function riskLevel(pole: Pole): RiskCategory {
     const category = pole.finalAiRiskCategory?.trim().toUpperCase();
     if (categories.includes(category as RiskCategory)) return category as RiskCategory;

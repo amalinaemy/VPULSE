@@ -7,7 +7,7 @@ export function StateFilter({ states, selection, onChange, count }: {
     return <fieldset className="page-state-filter">
         <legend>Filter by state</legend>
         <div className="state-filter-actions">
-            <span>Select one or more states · {count.toLocaleString()} poles</span>
+            <span>{count.toLocaleString()} poles</span>
             <button type="button" onClick={() => onChange(null)}>Select all</button>
             <button type="button" onClick={() => onChange([])}>Clear all</button>
         </div>

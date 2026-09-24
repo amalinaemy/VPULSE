@@ -1,8 +1,8 @@
-.page-state-filter { margin: 0 0 24px; padding: 18px 22px; border: 1px solid #b9cfe2; border-radius: 18px; background: var(--surface, #fff); color: #173863; min-width: 0; }
-.page-state-filter legend { padding: 0 8px; font-weight: 750; font-size: 1.05rem; }
-.state-filter-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; }
-.state-filter-actions span { flex: 1; min-width: 200px; }
-.state-filter-actions button { padding: 6px 12px; border: 1px solid #b9cfe2; border-radius: 8px; background: #f0f7fc; color: #173863; cursor: pointer; }
-.state-filter-options { display: flex; flex-wrap: wrap; gap: 10px 20px; }
-.state-filter-options label { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 5px 0; font-weight: 600; }
-.state-filter-options input { width: 18px; height: 18px; accent-color: #087e98; margin: 0; }
+.page-state-filter { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 16px; padding: 6px 14px 10px; border: 1px solid #b9cfe2; border-radius: 12px; background: var(--surface, #fff); color: #173863; min-width: 0; font-size: .85rem; }
+.page-state-filter legend { padding: 0 6px; font-weight: 700; font-size: .9rem; }
+.state-filter-actions { order: 2; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-left: auto; }
+.state-filter-actions button { padding: 4px 8px; border: 1px solid #b9cfe2; border-radius: 6px; background: #f0f7fc; color: #173863; cursor: pointer; font-size: inherit; }
+.state-filter-options { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.state-filter-options label { display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 4px 0; font-weight: 600; font-size: inherit; }
+.state-filter-options input { width: 16px; height: 16px; accent-color: #087e98; margin: 0; }
+@media (max-width: 600px) { .state-filter-actions { margin-left: 0; } }
