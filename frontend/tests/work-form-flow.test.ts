@@ -110,3 +110,18 @@ test('field work pack and form buttons remain available while feedback loads or 
     assert.doesNotMatch(html,/Trimming work: Pending/);
   }
 });
+
+test('assessment details override saved work details and a missing street is excluded from submitted edits', async () => {
+  const {initialWorkFormValues,editableWorkFormValues}=await import('../src/services/workForm.ts');
+  const form=normalizeWorkForm({...row,cr1da_feederid:'Old feeder',cr1da_zone:'Old street',cr1da_gpsautocapture:'1',cr1da_gambaraireference:'2'},'P1');
+  const pole:any={poleId:'P1',feederId:'Current feeder',streetName:null,latitude:3.2,longitude:101.4};
+  const values=initialWorkFormValues(form,pole);
+  assert.equal(values.cr1da_feederid,'Current feeder');
+  assert.equal(values.cr1da_zone,'');
+  assert.equal(values.cr1da_gpsautocapture,'3.2');
+  assert.equal(values.cr1da_gambaraireference,'101.4');
+  values.cr1da_remarksactiontaken='New remarks';
+  const payload=editableWorkFormValues(form,values);
+  assert.equal(payload.cr1da_remarksactiontaken,'New remarks');
+  for(const name of ['cr1da_feederpolesection','cr1da_feederid','cr1da_zone','cr1da_gpsautocapture','cr1da_gambaraireference'])assert.equal(name in payload,false);
+});

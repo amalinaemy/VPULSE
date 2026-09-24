@@ -137,7 +137,7 @@ export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
                             key={field.name}
                             className={field.name === "cr1da_remarksactiontaken" ? "work-form-remarks" : undefined}
                         >
-                            <span>{field.required && <b aria-hidden="true">* </b>}{field.label}</span>
+                            <span>{field.required && !isLockedField(field) && <b aria-hidden="true">* </b>}{field.label}</span>
                             <FormField
                                 field={field}
                                 value={values[field.name]}
@@ -168,7 +168,7 @@ function FormField({ field, value, onChange, onImageChange }: FormFieldProps) {
         return (
             <select
                 disabled={locked}
-                required={field.required}
+                required={field.required && !locked}
                 multiple={field.type === "multiselect"}
                 value={Array.isArray(value) ? value.map(String) : String(value ?? "")}
                 onChange={event => onChange(
@@ -191,7 +191,7 @@ function FormField({ field, value, onChange, onImageChange }: FormFieldProps) {
                 <input
                     type="file"
                     accept="image/jpeg,image/png"
-                    required={field.required && !value}
+                    required={field.required && !locked && !value}
                     onChange={onImageChange}
                 />
                 {typeof value === "string" && value.startsWith("data:image/") && (
@@ -205,7 +205,7 @@ function FormField({ field, value, onChange, onImageChange }: FormFieldProps) {
         return (
             <textarea
                 rows={3}
-                required={field.required}
+                required={field.required && !locked}
                 maxLength={field.maxLength ?? undefined}
                 value={String(value ?? "")}
                 onChange={event => onChange(event.target.value)}
@@ -216,7 +216,7 @@ function FormField({ field, value, onChange, onImageChange }: FormFieldProps) {
     return (
         <input
             readOnly={locked}
-            required={field.required}
+            required={field.required && !locked}
             maxLength={field.maxLength ?? undefined}
             type={field.type === "number" ? "number" : field.type === "date" ? "date" : "text"}
             step="any"

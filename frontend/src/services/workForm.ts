@@ -14,6 +14,11 @@ export function sortWorkFormFields(fields: WorkFormField[]) {
 export function initialWorkFormValues(form: WorkFormRecord, pole: Pole): Record<string, WorkFormValue> {
     const initial: Record<string, WorkFormValue> = {};
     const details: Record<string, WorkFormValue> = {
+        cr1da_feederpolesection: pole.poleId,
+        cr1da_feederid: pole.feederId,
+        cr1da_zone: pole.streetName,
+        cr1da_gpsautocapture: pole.latitude,
+        cr1da_gambaraireference: pole.longitude,
         poleid: pole.poleId,
         feederid: pole.feederId,
         streetname: pole.streetName,
@@ -21,8 +26,11 @@ export function initialWorkFormValues(form: WorkFormRecord, pole: Pole): Record<
         longitude: pole.longitude,
     };
     for (const field of form.fields) {
-        const name = field.name === "cr1da_feederpolesection" ? "poleid" : key(field.label);
-        initial[field.name] = name === "poleid" ? pole.poleId : field.value ?? details[name] ?? (field.type === "multiselect" ? [] : "");
+        const detailKey = field.name in details ? field.name : key(field.label);
+        // Assessment values remain authoritative even when blank or changed since the work record was saved.
+        initial[field.name] = detailKey in details
+            ? details[detailKey] ?? ""
+            : field.value ?? (field.type === "multiselect" ? [] : "");
         if (field.type === "text" && initial[field.name] != null)
             initial[field.name] = String(initial[field.name]);
     }
