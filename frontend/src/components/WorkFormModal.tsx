@@ -128,6 +128,7 @@ export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
                 </header>
 
                 {error && <p role="alert" className="work-form-error">{error}</p>}
+                {record?.found === false && <p role="status">No existing work record was found for this pole. Pole details are prefilled below.</p>}
                 {!record && !error && <p role="status">Loading work form…</p>}
 
                 <fieldset disabled={saving || saved} className="work-form-fields">

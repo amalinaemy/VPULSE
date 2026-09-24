@@ -4,7 +4,7 @@ interface WorkFormField {
   options: { value: number; label: string }[] | null;
   value: string | number | number[] | null; readOnly?: boolean;
 }
-interface WorkFormRecord { id: string | null; version: string | null; fields: WorkFormField[] }
+interface WorkFormRecord { found?: boolean; id: string | null; version: string | null; fields: WorkFormField[] }
 
 const formattedSuffix = '@odata.community.display.v1.formattedvalue';
 const fieldDefinitions = [
@@ -76,6 +76,7 @@ export function normalizeWorkForm(data: unknown, poleId: string): WorkFormRecord
     };
   });
   return {
+    found: record.found !== false,
     id: typeof record.cr1da_lvvmmodelid === 'string' ? record.cr1da_lvvmmodelid : null,
     version: typeof record['@odata.etag'] === 'string' ? record['@odata.etag'] : null,
     fields,

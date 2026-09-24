@@ -5,21 +5,22 @@ const API_BASE_URL =
 // helpful runtime log when troubleshooting local dev
 console.debug("VITE_API_BASE_URL ->", import.meta.env.VITE_API_BASE_URL, "using ->", API_BASE_URL);
 
+async function readApiResponse(response: Response): Promise<any> {
+  const body = await response.text();
+  let data: any;
+  try { data = JSON.parse(body); } catch {
+    throw new Error(response.ok
+      ? 'The API returned an invalid response. Please retry.'
+      : `The server could not complete the request (HTTP ${response.status}). Please retry.`);
+  }
+  if (!response.ok) throw new Error(data?.message ?? data?.detail ?? data?.title ?? `API request failed (HTTP ${response.status}).`);
+  return data;
+}
+
 export async function apiGet<T>(endpoint: string, baseUrl: string = API_BASE_URL): Promise<T> {
   const response = await fetch(`${baseUrl}${endpoint}`);
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => null) as
-      | { message?: string; detail?: string; title?: string }
-      | null;
-
-    throw new Error(
-      error?.message ?? error?.detail ?? error?.title ??
-      `API request failed: ${response.status} ${response.statusText}`
-    );
-  }
-
-  return response.json();
+  return readApiResponse(response);
 }
 
 export async function checkBackend(): Promise<boolean> {
@@ -191,8 +192,7 @@ export async function getWorkFeedback(poleIds: string[], signal?: AbortSignal): 
       if (cached && cached.expires > Date.now()) { result[index] = cached.data; continue; }
       try {
         const response = await fetch(`/api/work-feedback?poleId=${encodeURIComponent(id)}`, { signal });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data?.message ?? `Unable to load trimming data (HTTP ${response.status}).`);
+        const data = await readApiResponse(response);
         if (!Array.isArray(data)) throw new Error('Invalid trimming data response.');
         feedbackCache.set(id, { expires: Date.now() + 300000, data });
         result[index] = data;
@@ -208,7 +208,7 @@ export interface WorkFormField {
   name: string; label: string; type: string; required: boolean; maxLength: number | null; readOnly?: boolean;
   options: { value: number; label: string }[] | null; value: WorkFormValue;
 }
-export interface WorkFormRecord { id: string | null; version: string | null; fields: WorkFormField[] }
+export interface WorkFormRecord { found?: boolean; id: string | null; version: string | null; fields: WorkFormField[] }
 export async function getWorkForm(poleId: string): Promise<WorkFormRecord> {
   const data = await apiGet(`/api/work-form?poleId=${encodeURIComponent(poleId)}`, "");
   return normalizeWorkForm(data, poleId);

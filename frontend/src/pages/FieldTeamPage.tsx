@@ -67,9 +67,9 @@ export function FieldTeamPage({ poles, workFeedback, isLoading, error, onWorkFor
         if (query && ![pole.poleId, pole.feederId, pole.streetName]
             .some((value) => (value ?? "").toLowerCase().includes(query))) return false;
         if (riskFilter !== "All" && riskLevel(pole) !== riskFilter) return false;
-        if (trimmingFilter === "All") return true;
+        if (feedbackUnavailable || trimmingFilter === "All") return true;
         return trimmingWorkStatus(trimmingWorkByPole.get(normalizePoleId(pole.poleId))) === trimmingFilter;
-    }), [priorityPoles, trimmingWorkByPole, trimmingFilter, riskFilter, search]);
+    }), [priorityPoles, trimmingWorkByPole, trimmingFilter, riskFilter, search, feedbackUnavailable]);
     const priorityRankByPole = useMemo(() => new Map(priorityPoles.map((pole, index) => [pole, index + 1])), [priorityPoles]);
     const totalPages = Math.max(1, Math.ceil(filteredPoles.length / pageSize));
     const pagePoles = filteredPoles.slice((page - 1) * pageSize, page * pageSize);
@@ -148,9 +148,11 @@ export function FieldTeamPage({ poles, workFeedback, isLoading, error, onWorkFor
                 {feedbackLoading ? "Loading trimming data…" : "Refresh trimming data"}
             </button>
         </div>
-        {isLoading || feedbackLoading ?
+        {feedbackLoading && <p className="field-feedback-notice" role="status">Loading trimming statuses… You can open a work form below.</p>}
+        {feedbackError && <p className="field-feedback-notice" role="alert">Unable to load trimming data: {feedbackError} Use Refresh trimming data to retry. You can still open a work form below.</p>}
+        {isLoading ?
         <p className="loading">Loading field work pack…</p>
-        : error ? <p className="loading">{error}</p> : feedbackError ? <p className="loading" role="alert">Unable to load trimming data: {feedbackError}. Use Refresh trimming data to retry.</p> : priorityPoles.length === 0 ?
+        : error ? <p className="loading">{error}</p> : priorityPoles.length === 0 ?
         <p className="loading">No Critical or High poles found.</p> : <>
             <div className="field-team-map">
                 <GeospatialAnalysis poles={priorityPoles} showFeederRanking={false} onViewDetails={setSelectedPole} />
@@ -161,7 +163,7 @@ export function FieldTeamPage({ poles, workFeedback, isLoading, error, onWorkFor
                             i<span>Critical-risk poles that require field action.</span>
                         </button>
                     </div>
-                    {criticalPendingPoles.length === 0 ? <span className="no-critical-poles">
+                    {feedbackUnavailable ? <span className="no-critical-poles">Pending work analysis is unavailable until trimming statuses load.</span> : criticalPendingPoles.length === 0 ? <span className="no-critical-poles">
                         No Critical poles have pending work.</span>
                             : <ol>{criticalPendingPoles.map((pole, index) => <li key={`${pole.poleId ?? "pole"}-${index}`}>
                         <button className="critical-pending-link" type="button" onClick={() => openPendingPole(pole)}>
@@ -177,7 +179,7 @@ export function FieldTeamPage({ poles, workFeedback, isLoading, error, onWorkFor
                         <div><h3>Field Work Pack</h3>
                         <p>Prioritised inspection and pruning tasks for field execution.</p></div>
                         <div className="field-work-pack-title-actions">
-                            <button className="export-work-orders-button" type="button" onClick={exportWorkOrders} disabled={filteredPoles.length === 0}>Export Excel</button>
+                            <button className="export-work-orders-button" type="button" onClick={exportWorkOrders} disabled={feedbackUnavailable || filteredPoles.length === 0}>Export Excel</button>
                             <span className="data-tag">{filteredPoles.length} of {priorityPoles.length} poles</span>
                         </div>
                     </div>
@@ -193,7 +195,7 @@ export function FieldTeamPage({ poles, workFeedback, isLoading, error, onWorkFor
                             </select>
                         </label>
                         <label>Trimming work
-                            <select value={trimmingFilter} onChange={(event) => setTrimmingFilter(event.target.value as TrimmingFilter)}>
+                            <select disabled={feedbackUnavailable} value={trimmingFilter} onChange={(event) => setTrimmingFilter(event.target.value as TrimmingFilter)}>
                                 <option value="All">All</option>
                                 <option value="Completed">Completed</option>
                                 <option value="Not Started">Not Started</option>
@@ -211,7 +213,7 @@ export function FieldTeamPage({ poles, workFeedback, isLoading, error, onWorkFor
                     return <article className="field-task" id={fieldTaskId(pole.poleId)} tabIndex={-1} key={`${pole.poleId ?? "pole"}-${index}`}>
                         <div className="field-task-rank" aria-label={`Priority rank ${priorityRankByPole.get(pole)}`}>{priorityRankByPole.get(pole)}</div>
                         <div className="field-task-info"><h4>{pole.poleId ?? "Unnamed pole"}</h4><p>{pole.streetName ?? "Street not recorded"}</p><small>{pole.action ?? "Field inspection required"}</small>
-                            <span className={`trimming-status ${trimmingStatusClass(trimmingWork)}`}>Trimming work: {trimmingWork}</span>
+                            <span className={`trimming-status ${trimmingStatusClass(trimmingWork)}`}>Trimming work: {feedbackUnavailable ? "Unavailable" : trimmingWork}</span>
                         </div>
                         <div className="field-task-statuses">
                             <strong className={`risk-${category.toLowerCase()}`}>{category} {pole.finalAiRiskScore ?? "—"}</strong>

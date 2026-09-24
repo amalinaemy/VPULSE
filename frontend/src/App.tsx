@@ -104,14 +104,19 @@ function App() {
         loadInitialData();
     }, []);
 
-    // Refresh field feedback on navigation and retry independently of pole loading.
+    // Load feedback for the active view; form access is independent of this request.
     useEffect(() => {
-        if (isLoadingPoles || polesError) return;
+        if (isLoadingPoles || polesError || !["field", "executive", "engineer"].includes(activeView)) return;
         const controller = new AbortController();
         let active = true;
         setFeedbackLoading(true);
         setFeedbackError(null);
-        getWorkFeedback(poles.flatMap(pole => pole.poleId ? [pole.poleId] : []), controller.signal)
+        const feedbackPoles = activeView === "field" ? poles.filter(pole => {
+            const category = pole.finalAiRiskCategory?.trim().toUpperCase();
+            if (category && ["CRITICAL", "HIGH", "MEDIUM", "LOW"].includes(category)) return ["CRITICAL", "HIGH"].includes(category);
+            return Number(pole.finalAiRiskScore ?? -1) >= 60;
+        }) : poles;
+        getWorkFeedback(feedbackPoles.flatMap(pole => pole.poleId ? [pole.poleId] : []), controller.signal)
             .then(feedback => {
                 if (active) setWorkFeedback(feedback);
             })
@@ -122,7 +127,7 @@ function App() {
                 if (active) setFeedbackLoading(false);
             });
         return () => { active = false; controller.abort(); };
-    }, [poles, isLoadingPoles, polesError, feedbackRefresh]);
+    }, [activeView, poles, isLoadingPoles, polesError, feedbackRefresh]);
 
     /*
     |--------------------------------------------------------------------------

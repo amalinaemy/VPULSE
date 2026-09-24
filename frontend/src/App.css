@@ -3389,3 +3389,5 @@ button {
         align-self: flex-end;
     }
 }
+
+.field-feedback-notice { color: inherit; font-size: 0.95rem; line-height: 1.5; margin: 1rem 0; }

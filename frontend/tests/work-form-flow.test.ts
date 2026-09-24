@@ -75,3 +75,38 @@ test('dashboard requests are deduplicated, bounded, cached, and fail instead of 
     await assert.rejects(api.getWorkFeedback(ids,controller.signal),{name:'AbortError'});
   }finally{globalThis.fetch=oldFetch;}
 });
+
+test('server plain-text failures produce a readable error instead of a JSON syntax error', async () => {
+  const source=await readFile(new URL('../src/services/api.ts',import.meta.url),'utf8');
+  const adapter=new URL('../src/services/workFormResponse.ts',import.meta.url).href;
+  const compiled=ts.transpileModule(source.replace('"./workFormResponse"',JSON.stringify(adapter)).replaceAll('import.meta.env','({})'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2023}}).outputText;
+  const api=await import('data:text/javascript;base64,'+Buffer.from(compiled+'\n//error-test').toString('base64'));
+  const oldFetch=globalThis.fetch;
+  try {
+    globalThis.fetch=async()=>new Response('A server error has occurred\nFUNCTION_INVOCATION_FAILED',{status:500});
+    await assert.rejects(api.getWorkFeedback(['P1']),/HTTP 500/);
+    await assert.rejects(api.getWorkForm('P1'),/HTTP 500/);
+  }finally{globalThis.fetch=oldFetch;}
+});
+
+test('field work pack and form buttons remain available while feedback loads or fails', async () => {
+  const React=await import('react');
+  const {renderToStaticMarkup}=await import('react-dom/server');
+  let source=await readFile(new URL('../src/pages/FieldTeamPage.tsx',import.meta.url),'utf8');
+  source=source.replace(/import \{ WorkFormModal \}[^;]+;/,'const WorkFormModal = () => null;')
+    .replace(/import \{ GeospatialAnalysis \}[^;]+;/,'const GeospatialAnalysis = () => null;')
+    .replace(/import \{ PoleDetailsModal \}[^;]+;/,'const PoleDetailsModal = () => null;')
+    .replace('"../services/trimmingWork"',JSON.stringify(new URL('../src/services/trimmingWork.ts',import.meta.url).href));
+  let compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2023,jsx:ts.JsxEmit.ReactJSX}}).outputText;
+  compiled=compiled.replaceAll('"react"',JSON.stringify(import.meta.resolve('react'))).replaceAll('"react/jsx-runtime"',JSON.stringify(import.meta.resolve('react/jsx-runtime')));
+  const {FieldTeamPage}=await import('data:text/javascript;base64,'+Buffer.from(compiled).toString('base64'));
+  for(const state of [{feedbackLoading:true,feedbackError:null},{feedbackLoading:false,feedbackError:'HTTP 500'}]){
+    const html=renderToStaticMarkup(React.createElement(FieldTeamPage,{
+      poles:[{poleId:'P1',finalAiRiskCategory:'HIGH',finalAiRiskScore:70}],workFeedback:[],isLoading:false,error:null,
+      onWorkFormSaved:async()=>{},onRefreshFeedback:()=>{},...state,
+    }));
+    assert.match(html,/>Form<\/button>/);
+    assert.match(html,/Trimming work: Unavailable/);
+    assert.doesNotMatch(html,/Trimming work: Pending/);
+  }
+});
