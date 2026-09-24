@@ -162,13 +162,14 @@ test('save route authenticates, maps the flat schema, and sources locked details
   try{
     Object.assign(process.env,configured);
     globalThis.fetch=async(url,options)=>{
+      assert.ok(options);
       if(String(url).includes('login.microsoftonline.com')){
-        assert.equal((options?.body as URLSearchParams).get('scope'),'https://service.flow.microsoft.com/.default');
+        assert.equal((options.body as URLSearchParams).get('scope'),'https://service.flow.microsoft.com//.default');
         return Response.json({access_token:'mock-token'});
       }
       if(url===configured.POWER_AUTOMATE_GET_POLES_URL)return Response.json([{cr1da_poleidentifier:'P1',cr1da_feederidentifier:'F1',cr1da_zone:null,cr1da_latitude:0,cr1da_longitude:101.4}]);
       assert.equal(url,configured.POWER_AUTOMATE_SAVE_WORK_FORM_URL);
-      assert.equal((options?.headers as Record<string,string>).Authorization,'Bearer mock-token');
+      assert.equal((options.headers as Record<string,string>).Authorization,'Bearer mock-token');
       saveCalls++;savedPayload=JSON.parse(String(options?.body));
       if(mode==='http-error')return Response.json({error:{code:'TriggerInputSchemaMismatch'}},{status:400});
       if(mode==='rejected')return Response.json({success:false});

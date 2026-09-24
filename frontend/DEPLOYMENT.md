@@ -64,7 +64,7 @@ application/service principal in the same tenant as the flow:
 
 Never prefix these names with `VITE_` or commit their values. Redeploy after
 configuration changes. The API requests an application token for
-`https://service.flow.microsoft.com/.default` and sends it as a Bearer token.
+`https://service.flow.microsoft.com//.default` and sends it as a Bearer token.
 If the trigger restricts specific callers, its allowed list must include the
 service principal object ID. See Microsoft's HTTP trigger OAuth documentation:
 https://learn.microsoft.com/en-us/power-automate/oauth-authentication

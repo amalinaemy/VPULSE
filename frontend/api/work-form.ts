@@ -9,7 +9,8 @@ async function saveFlowToken(): Promise<string> {
   const response = await fetch(`https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`, {
     method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ grant_type: 'client_credentials', client_id: clientId,
-      client_secret: clientSecret, scope: 'https://service.flow.microsoft.com/.default' }),
+      // Power Automate's audience ends with '/'; preserve it before appending '/.default'.
+      client_secret: clientSecret, scope: 'https://service.flow.microsoft.com//.default' }),
   });
   const data: any = await response.json().catch(() => null);
   if (!response.ok || typeof data?.access_token !== 'string') {
@@ -254,7 +255,9 @@ export default async function handler(
           && /^[a-zA-Z0-9_.-]{1,100}$/.test(failure.error.code) ? ` (${failure.error.code})` : "";
         console.error("SaveWorkForm failed:", flowResponse.status, code);
         return res.status(flowResponse.status === 409 ? 409 : 502).json({
-          message: `SaveWorkForm returned HTTP ${flowResponse.status}${code}. Open its latest failed run in Power Automate to see which action failed.`,
+          message: flowResponse.status === 401 || flowResponse.status === 403
+            ? `SaveWorkForm rejected authentication (HTTP ${flowResponse.status}${code}). Verify that the Entra application and flow belong to the same tenant and that the trigger permits this service principal. The flow may not have started.`
+            : `SaveWorkForm returned HTTP ${flowResponse.status}${code}. Open its latest failed run in Power Automate to see which action failed.`,
         });
       }
 
