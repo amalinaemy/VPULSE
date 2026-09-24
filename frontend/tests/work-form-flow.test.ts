@@ -78,6 +78,18 @@ test('dashboard requests are deduplicated, bounded, cached, and fail instead of 
     assert.equal(attempts, 2);
     globalThis.fetch=async()=>Response.json({message:'Flow failed',retryable:false},{status:502});
     await assert.rejects(api.getWorkFeedback(ids),/Flow failed/);
+    api.invalidateWorkFeedback();
+    const requested: string[] = [];
+    globalThis.fetch=async(url)=> {
+      const id = new URL(String(url), 'https://example.invalid').searchParams.get('poleId')!;
+      requested.push(id);
+      return id === 'bad' ? Response.json({message:'Flow failed',retryable:false},{status:502}) : Response.json([]);
+    };
+    await assert.rejects(api.getWorkFeedback(['bad','good1','good2']), /1 pole\(s\).*bad/);
+    assert.deepEqual(requested.sort(), ['bad','good1','good2']);
+    requested.length = 0;
+    await assert.rejects(api.getWorkFeedback(['bad','good1','good2']), /bad/);
+    assert.deepEqual(requested, ['bad']);
     const controller=new AbortController();controller.abort();
     await assert.rejects(api.getWorkFeedback(ids,controller.signal),{name:'AbortError'});
   }finally{globalThis.fetch=oldFetch;}

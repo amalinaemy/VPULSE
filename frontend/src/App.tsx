@@ -234,7 +234,7 @@ function App() {
                     <FieldTeamPage
                         feedbackLoading={feedbackLoading}
                         feedbackError={feedbackError}
-                        onRefreshFeedback={() => { invalidateWorkFeedback(); setFeedbackRefresh(value => value + 1); }}
+                        onRefreshFeedback={() => { if (!feedbackError) invalidateWorkFeedback(); setFeedbackRefresh(value => value + 1); }}
                         poles={poles}
                         workFeedback={workFeedback}
                         isLoading={isLoadingPoles}

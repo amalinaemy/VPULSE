@@ -182,9 +182,9 @@ export async function getWorkFeedback(poleIds: string[], signal?: AbortSignal): 
   const ids = [...new Set(poleIds.map(id => id.trim()).filter(Boolean))];
   const result: WorkFeedback[][] = new Array(ids.length);
   let next = 0;
-  let failed = false;
+  const failures: string[] = [];
   async function worker() {
-    while (!failed && next < ids.length) {
+    while (next < ids.length) {
       signal?.throwIfAborted();
       const index = next++;
       const id = ids[index];
@@ -204,10 +204,14 @@ export async function getWorkFeedback(poleIds: string[], signal?: AbortSignal): 
         if (!Array.isArray(data)) throw new Error('Invalid trimming data response.');
         feedbackCache.set(id, { expires: Date.now() + 300000, data });
         result[index] = data;
-      } catch (error) { failed = true; throw error; }
+      } catch (error) {
+        signal?.throwIfAborted();
+        failures.push(`${id}: ${error instanceof Error ? error.message : 'Unable to load feedback.'}`);
+      }
     }
   }
   await Promise.all(Array.from({ length: Math.min(2, ids.length) }, worker));
+  if (failures.length) throw new Error(`${failures.length} pole(s) could not load. ${failures[0]} Successful requests are retained; Refresh retries missing data.`);
   return result.flat();
 }
 

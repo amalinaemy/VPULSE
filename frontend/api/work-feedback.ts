@@ -1,3 +1,5 @@
+export const maxDuration = 60;
+
 const formattedSuffix = '@odata.community.display.v1.formattedvalue';
 
 function recordOf(data: unknown): Record<string, unknown> {
@@ -41,7 +43,7 @@ export default async function handler(req: any, res: any) {
   try {
     const response = await fetch(flowUrl, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ poleId }), signal: AbortSignal.timeout(25000),
+      body: JSON.stringify({ poleId }), signal: AbortSignal.timeout(55000),
     });
     if (!response.ok) {
       const failure: any = await response.json().catch(() => null);
@@ -60,7 +62,7 @@ export default async function handler(req: any, res: any) {
   } catch (error) {
     const timedOut = error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError');
     return res.status(timedOut ? 504 : 502).json({
-      message: timedOut ? 'GetWorkForm exceeded the 25-second response limit. Check the duration and Response action in its latest run.' : 'The connection to GetWorkForm was interrupted. Retry the request.',
+      message: timedOut ? 'GetWorkForm exceeded the 55-second response limit. Check the duration and Response action in its latest run.' : 'The connection to GetWorkForm was interrupted. Retry the request.',
       retryable: true,
     });
   }
