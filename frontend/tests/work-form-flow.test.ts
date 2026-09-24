@@ -147,3 +147,30 @@ test('all five supplied choice mappings are editable and submit numeric values i
   assert.equal(existing.fields.find(f=>f.name==='cr1da_fieldtrimmingrequired')?.value,0);
   assert.equal(existing.fields.find(f=>f.name==='cr1da_inspectionstatus')?.value,0);
 });
+
+test('save flow gets numeric choices intact and exposes upstream error codes without reporting success', async () => {
+  const {default:saveHandler}=await import('../api/work-form.ts');
+  const oldFetch=globalThis.fetch,oldUrl=process.env.POWER_AUTOMATE_SAVE_WORK_FORM_URL;
+  const values={cr1da_inspectionstatus:0,cr1da_fieldtrimmingrequired:1,crf11_trimmingwork:2};
+  async function invoke(input:unknown=values){
+    const res:any={code:0,body:null,status(c:number){this.code=c;return this;},json(b:unknown){this.body=b;return this;}};
+    await saveHandler({method:'PUT',query:{poleId:'P1'},body:{id:'record-id',version:'W/"2"',values:input}},res);return res;
+  }
+  try{
+    process.env.POWER_AUTOMATE_SAVE_WORK_FORM_URL='https://example.invalid/save';
+    globalThis.fetch=async(url,options)=>{
+      assert.equal(url,'https://example.invalid/save');
+      assert.deepEqual(JSON.parse(String(options?.body)),{poleId:'P1',id:'record-id',version:'W/"2"',values});
+      return Response.json({error:{code:'TriggerInputSchemaMismatch'}},{status:400});
+    };
+    const result=await invoke();assert.equal(result.code,502);assert.match(result.body.message,/HTTP 400 \(TriggerInputSchemaMismatch\)/);
+    globalThis.fetch=async()=>Response.json({success:false});
+    assert.equal((await invoke()).code,502);
+    globalThis.fetch=async()=>new Response(null,{status:204});
+    assert.equal((await invoke()).code,200);
+    assert.equal((await invoke([])).code,400);
+  }finally{
+    globalThis.fetch=oldFetch;
+    if(oldUrl===undefined)delete process.env.POWER_AUTOMATE_SAVE_WORK_FORM_URL;else process.env.POWER_AUTOMATE_SAVE_WORK_FORM_URL=oldUrl;
+  }
+});

@@ -166,7 +166,7 @@ export default async function handler(
 
       if (
         !values ||
-        typeof values !== "object"
+        typeof values !== "object" || Array.isArray(values)
       ) {
 
         return res.status(400).json({
@@ -218,24 +218,14 @@ export default async function handler(
       */
 
       if (!flowResponse.ok) {
-
-        const error =
-          await flowResponse.text();
-
-
-        console.error(
-          "Save Work Form flow error:",
-          error
-        );
-
-
-        return res.status(502).json({
-          message:
-            "Unable to save the work form to Dataverse."
+        const failure: any = await flowResponse.json().catch(() => null);
+        const code = typeof failure?.error?.code === "string"
+          && /^[a-zA-Z0-9_.-]{1,100}$/.test(failure.error.code) ? ` (${failure.error.code})` : "";
+        console.error("SaveWorkForm failed:", flowResponse.status, code);
+        return res.status(flowResponse.status === 409 ? 409 : 502).json({
+          message: `SaveWorkForm returned HTTP ${flowResponse.status}${code}. Open its latest failed run in Power Automate to see which action failed.`,
         });
-
       }
-
 
       /*
       |--------------------------------------------------------------------------
@@ -272,7 +262,9 @@ export default async function handler(
 
         const data =
           JSON.parse(responseText);
-
+        if (data?.success === false || data?.error) {
+          return res.status(502).json({ message: "SaveWorkForm reported a failed save. Check its Response action and Dataverse action in run history." });
+        }
 
         return res
           .status(200)
