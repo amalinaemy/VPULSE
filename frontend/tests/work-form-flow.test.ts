@@ -72,7 +72,7 @@ test('dashboard requests are deduplicated, bounded, cached, and fail instead of 
     api.invalidateWorkFeedback();
     let attempts = 0;
     globalThis.fetch=async()=> ++attempts === 1
-      ? Response.json({message:'Temporary timeout',retryable:true},{status:504})
+      ? Response.json({message:'Temporary outage',retryable:true},{status:503})
       : Response.json([]);
     assert.deepEqual(await api.getWorkFeedback(['retry-pole']), []);
     assert.equal(attempts, 2);
@@ -90,6 +90,16 @@ test('dashboard requests are deduplicated, bounded, cached, and fail instead of 
     requested.length = 0;
     await assert.rejects(api.getWorkFeedback(['bad','good1','good2']), /bad/);
     assert.deepEqual(requested, ['bad']);
+    api.invalidateWorkFeedback();
+    let timeoutCalls = 0;
+    globalThis.fetch=async()=> {
+      timeoutCalls++;
+      return new Response('FUNCTION_INVOCATION_TIMEOUT', {status:504});
+    };
+    await assert.rejects(api.getWorkFeedback(Array.from({length:168},(_,i)=>'timeout-'+i)), /Background requests have stopped/);
+    assert.equal(timeoutCalls,2, 'Timeouts must stop the queue without retrying all 168 poles');
+    globalThis.fetch=async()=>Response.json([]);
+    assert.deepEqual(await api.getWorkFeedback(['timeout-0']),[], 'Manual refresh can recover');
     const controller=new AbortController();controller.abort();
     await assert.rejects(api.getWorkFeedback(ids,controller.signal),{name:'AbortError'});
   }finally{globalThis.fetch=oldFetch;}
@@ -243,4 +253,28 @@ test('unselected and unchanged image fields are omitted, preserving existing Dat
   assert.equal(form.fields.find(f => f.name === 'crf11_gambarselepasditapak')?.value, null);
   const metadata = normalizeWorkForm(form, 'P1');
   assert.deepEqual(metadata, form);
+});
+
+
+test('form and feedback routes return actionable errors on an upstream timeout', async () => {
+  const {default:formHandler}=await import('../api/work-form.ts');
+  const oldFetch=globalThis.fetch, oldUrl=process.env.POWER_AUTOMATE_GET_WORK_FORM_URL;
+  try {
+    process.env.POWER_AUTOMATE_GET_WORK_FORM_URL='https://example.invalid/read';
+    globalThis.fetch=async(_url, options)=> {
+      assert.ok(options?.signal, 'Upstream reads must have a timeout');
+      throw new DOMException('Timed out', 'TimeoutError');
+    };
+    for (const route of [handler,formHandler]) {
+      const res:any={code:0,body:null,status(c:number){this.code=c;return this;},json(b:unknown){this.body=b;return this;}};
+      await route({method:'GET',query:{poleId:'P1'}},res);
+      assert.equal(res.code,504);
+      assert.equal(res.body.retryable,false);
+      assert.match(res.body.message,/flow|GetWorkForm/);
+    }
+  } finally {
+    globalThis.fetch=oldFetch;
+    if(oldUrl===undefined)delete process.env.POWER_AUTOMATE_GET_WORK_FORM_URL;
+    else process.env.POWER_AUTOMATE_GET_WORK_FORM_URL=oldUrl;
+  }
 });

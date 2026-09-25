@@ -183,8 +183,9 @@ export async function getWorkFeedback(poleIds: string[], signal?: AbortSignal): 
   const result: WorkFeedback[][] = new Array(ids.length);
   let next = 0;
   const failures: string[] = [];
+  let serviceTimedOut = false;
   async function worker() {
-    while (next < ids.length) {
+    while (next < ids.length && !serviceTimedOut) {
       signal?.throwIfAborted();
       const index = next++;
       const id = ids[index];
@@ -192,7 +193,7 @@ export async function getWorkFeedback(poleIds: string[], signal?: AbortSignal): 
       if (cached && cached.expires > Date.now()) { result[index] = cached.data; continue; }
       try {
         let response = await fetch(`/api/work-feedback?poleId=${encodeURIComponent(id)}`, { signal });
-        if ([429, 502, 503, 504].includes(response.status)) {
+        if ([429, 502, 503].includes(response.status)) {
           const failure = await response.clone().json().catch(() => null);
           if (failure?.retryable !== false) {
             await new Promise(resolve => setTimeout(resolve, 1000));
@@ -200,6 +201,8 @@ export async function getWorkFeedback(poleIds: string[], signal?: AbortSignal): 
             response = await fetch(`/api/work-feedback?poleId=${encodeURIComponent(id)}`, { signal });
           }
         }
+        // Stop scheduling more flow runs when the service is already timing out.
+        if (response.status === 504) serviceTimedOut = true;
         const data = await readApiResponse(response);
         if (!Array.isArray(data)) throw new Error('Invalid trimming data response.');
         feedbackCache.set(id, { expires: Date.now() + 300000, data });
@@ -211,6 +214,7 @@ export async function getWorkFeedback(poleIds: string[], signal?: AbortSignal): 
     }
   }
   await Promise.all(Array.from({ length: Math.min(2, ids.length) }, worker));
+  if (serviceTimedOut) throw new Error("The work-record service timed out. Background requests have stopped. Successful results are retained; use Refresh to retry after the service recovers. You can still open an individual work form.");
   if (failures.length) throw new Error(`${failures.length} pole(s) could not load. ${failures[0]} Successful requests are retained; Refresh retries missing data.`);
   return result.flat();
 }
