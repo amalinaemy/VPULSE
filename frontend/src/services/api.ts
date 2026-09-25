@@ -184,21 +184,28 @@ export async function getWorkFeedback(poleIds: string[], signal?: AbortSignal): 
   let next = 0;
   const failures: string[] = [];
   let serviceTimedOut = false;
+  let connectionFailed = false;
+  function fetchFeedback(id: string) {
+    const deadline = AbortSignal.timeout(65000);
+    return fetch(`/api/work-feedback?poleId=${encodeURIComponent(id)}`, {
+      signal: signal ? AbortSignal.any([signal, deadline]) : deadline,
+    });
+  }
   async function worker() {
-    while (next < ids.length && !serviceTimedOut) {
+    while (next < ids.length && !serviceTimedOut && !connectionFailed) {
       signal?.throwIfAborted();
       const index = next++;
       const id = ids[index];
       const cached = feedbackCache.get(id);
       if (cached && cached.expires > Date.now()) { result[index] = cached.data; continue; }
       try {
-        let response = await fetch(`/api/work-feedback?poleId=${encodeURIComponent(id)}`, { signal });
+        let response = await fetchFeedback(id);
         if ([429, 502, 503].includes(response.status)) {
           const failure = await response.clone().json().catch(() => null);
           if (failure?.retryable !== false) {
             await new Promise(resolve => setTimeout(resolve, 1000));
             signal?.throwIfAborted();
-            response = await fetch(`/api/work-feedback?poleId=${encodeURIComponent(id)}`, { signal });
+            response = await fetchFeedback(id);
           }
         }
         // Stop scheduling more flow runs when the service is already timing out.
@@ -209,11 +216,16 @@ export async function getWorkFeedback(poleIds: string[], signal?: AbortSignal): 
         result[index] = data;
       } catch (error) {
         signal?.throwIfAborted();
+        // Fetch and response-body reads reject when no usable HTTP response arrives.
+        if (error instanceof TypeError || (error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name))) {
+          connectionFailed = true;
+        }
         failures.push(`${id}: ${error instanceof Error ? error.message : 'Unable to load feedback.'}`);
       }
     }
   }
   await Promise.all(Array.from({ length: Math.min(2, ids.length) }, worker));
+  if (connectionFailed) throw new Error("Could not connect to the work-record service. Background requests have stopped. Check your connection, then use Refresh to retry. Successful requests are retained.");
   if (serviceTimedOut) throw new Error("The work-record service timed out. Background requests have stopped. Successful results are retained; use Refresh to retry after the service recovers. You can still open an individual work form.");
   if (failures.length) throw new Error(`${failures.length} pole(s) could not load. ${failures[0]} Successful requests are retained; Refresh retries missing data.`);
   return result.flat();

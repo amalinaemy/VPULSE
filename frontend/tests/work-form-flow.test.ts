@@ -100,6 +100,19 @@ test('dashboard requests are deduplicated, bounded, cached, and fail instead of 
     assert.equal(timeoutCalls,2, 'Timeouts must stop the queue without retrying all 168 poles');
     globalThis.fetch=async()=>Response.json([]);
     assert.deepEqual(await api.getWorkFeedback(['timeout-0']),[], 'Manual refresh can recover');
+    api.invalidateWorkFeedback();
+    let connectionCalls = 0;
+    globalThis.fetch=async(_url,options)=> {
+      connectionCalls++;
+      assert.ok(options?.signal, 'Feedback requests need a client-side deadline');
+      throw new TypeError('Failed to fetch');
+    };
+    await assert.rejects(api.getWorkFeedback(Array.from({length:168},(_,i)=>'offline-'+i)), /Could not connect.*Background requests have stopped/);
+    assert.equal(connectionCalls,2, 'Network failures must stop the queue');
+    globalThis.fetch=async()=> { throw new DOMException('Timed out', 'TimeoutError'); };
+    await assert.rejects(api.getWorkFeedback(['slow']), /Could not connect/);
+    globalThis.fetch=async()=>Response.json([]);
+    assert.deepEqual(await api.getWorkFeedback(['offline-0']),[]);
     const controller=new AbortController();controller.abort();
     await assert.rejects(api.getWorkFeedback(ids,controller.signal),{name:'AbortError'});
   }finally{globalThis.fetch=oldFetch;}
