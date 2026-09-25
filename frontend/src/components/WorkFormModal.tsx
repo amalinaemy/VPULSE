@@ -164,6 +164,8 @@ export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
 
 function FormField({ field, value, onChange, onImageChange }: FormFieldProps) {
     const locked = isLockedField(field);
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
     if (field.type === "choice" || field.type === "multiselect") {
         return (
@@ -221,6 +223,7 @@ function FormField({ field, value, onChange, onImageChange }: FormFieldProps) {
             required={field.required && !locked}
             maxLength={field.maxLength ?? undefined}
             type={field.type === "number" ? "number" : field.type === "date" ? "date" : "text"}
+            max={field.name === "cr1da_inspectiondate" ? today : undefined}
             step="any"
             value={String(value ?? "")}
             onChange={event => onChange(
