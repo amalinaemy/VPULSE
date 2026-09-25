@@ -176,6 +176,7 @@ export interface WorkFormField {
 }
 
 export interface WorkFormRecord {
+  found?: boolean;
   id: string | null;
   version: string | null;
   fields: WorkFormField[];
