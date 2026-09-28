@@ -162,6 +162,7 @@ export async function getPoles():
 
       modifiedOn:
         record.modifiedon ??
+        record.modifiedOn ??
         null,
     })
   );

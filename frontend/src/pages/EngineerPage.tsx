@@ -30,7 +30,6 @@ export function EngineerPage({ poles: allPoles, workFeedback, isLoading, error }
             <span className="eyebrow">Engineer View</span>
             <h2>Pole-Level Technical Analytics</h2>
             <p>Map-first risk triage with feeder ranking, live Dataverse pole markers and work-order-ready actions.</p>
-            <div className="pill-row"><span>Esri Satellite default</span><span>Risk-layer filtering</span></div>
         </section>
         <StateFilter states={states} selection={selection} count={poles.length} onChange={value => { setSelection(value); setSelectedPole(null); setHierarchyTarget(null); }} />
         {!isLoading && !error && poles.length > 0 && <section className="risk-insights" aria-label="Risk overview"><div className="risk-summary-cards">

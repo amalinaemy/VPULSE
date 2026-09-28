@@ -24,7 +24,7 @@ export function AppHeader({ dataStatus, recordCount, lastModifiedOn, theme, onTh
                 </div>
             </div>
             <div className="navbar-actions">
-                <div className="connection" role="status"><span className={dataStatus === "connected" ? "live-dot" : dataStatus === "error" ? "offline-dot" : undefined} />{dataStatus === "loading" ? "Loading pole data…" : dataStatus === "error" ? "Pole data unavailable" : recordSummary}</div>
+                <div className="connection" role="status" title="Latest record modification in Dataverse (Malaysia time)"><span className={dataStatus === "connected" ? "live-dot" : dataStatus === "error" ? "offline-dot" : undefined} />{dataStatus === "loading" ? "Loading pole data…" : dataStatus === "error" ? "Pole data unavailable" : recordSummary}</div>
                 <button className="theme-button" type="button" onClick={onThemeToggle} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}>{theme === "dark" ? "☀" : "☾"}</button>
                 <button className="profile-button" type="button" aria-label="User profile"><span className="profile-avatar">NR</span></button>
             </div>
@@ -34,6 +34,7 @@ export function AppHeader({ dataStatus, recordCount, lastModifiedOn, theme, onTh
 
 function formatLastRefresh(value: string) {
     return new Intl.DateTimeFormat("en-MY", {
+        timeZone: "Asia/Kuala_Lumpur",
         day: "numeric",
         month: "short",
         year: "numeric",

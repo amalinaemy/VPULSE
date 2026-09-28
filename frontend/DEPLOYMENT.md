@@ -77,3 +77,29 @@ server-side from the assessment flow; a missing street is sent as null. Existing
 `id`, `version` and editable `values` are retained as optional extra properties.
 Live save testing requires a user-approved real form submission; mocked tests
 exercise the token exchange and payload without changing Dataverse rows.
+
+
+### Production publishing
+
+Vercel production (`https://vpulse-delta.vercel.app`) deploys from `main`.
+Pushes to `master` create Preview deployments and do not update production.
+Always verify the deployment environment and the live production URL.
+
+### Last Refresh date
+
+The header shows the newest Dataverse `modifiedon` across the returned pole
+records, formatted in Malaysia time (Asia/Kuala_Lumpur). It is the data's last
+modification time, not the time the page was opened. Both raw `modifiedon` and
+backend `modifiedOn` response keys are supported.
+
+In the Get Poles Power Automate flow:
+
+1. Include `modifiedon` in the Dataverse **List rows → Select columns** field
+   if that field contains an explicit column list.
+2. If a **Select** action shapes the response, add the key `modifiedon` with
+   the expression `item()?['modifiedon']`.
+3. Include this property in every record returned by the **Response** action,
+   preserving the raw ISO timestamp (for example `2026-09-24T08:52:00Z`).
+
+That example displays as 24 Sept 2026, 4:52 pm in Malaysia. If all returned
+records omit the timestamp, the badge displays “Last Refresh unavailable”.

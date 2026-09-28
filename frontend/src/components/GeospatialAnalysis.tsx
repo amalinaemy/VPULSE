@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { divIcon, latLngBounds } from "leaflet";
 import { MapContainer, Marker, TileLayer, Tooltip, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -8,6 +8,50 @@ const categories = ["CRITICAL", "HIGH", "MEDIUM", "LOW"] as const;
 type RiskCategory = typeof categories[number];
 
 export function GeospatialAnalysis({ poles, showFeederRanking = true, onSelectPole, onViewDetails }: { poles: Pole[]; showFeederRanking?: boolean; onSelectPole?: (pole: Pole) => void; onViewDetails?: (pole: Pole) => void }) {
+    const cardRef = useRef<HTMLElement>(null);
+    const fullscreenButtonRef = useRef<HTMLButtonElement>(null);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+
+    useEffect(() => {
+        const syncFullscreen = () => {
+            setIsFullscreen(document.fullscreenElement === cardRef.current);
+        };
+        document.addEventListener("fullscreenchange", syncFullscreen);
+        return () => document.removeEventListener("fullscreenchange", syncFullscreen);
+    }, []);
+
+    useEffect(() => {
+        if (!isFullscreen) return;
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape" && !document.fullscreenElement) {
+                setIsFullscreen(false);
+                fullscreenButtonRef.current?.focus();
+            }
+        };
+        document.addEventListener("keydown", onKeyDown);
+        return () => {
+            document.body.style.overflow = previousOverflow;
+            document.removeEventListener("keydown", onKeyDown);
+        };
+    }, [isFullscreen]);
+
+    async function toggleFullscreen() {
+        if (isFullscreen) {
+            if (document.fullscreenElement === cardRef.current) await document.exitFullscreen();
+            setIsFullscreen(false);
+            fullscreenButtonRef.current?.focus();
+        } else {
+            try {
+                await cardRef.current?.requestFullscreen();
+            } catch {
+                // Use a viewport-filling view when browser fullscreen is unavailable.
+            }
+            setIsFullscreen(true);
+        }
+    }
+
     const [riskFilter, setRiskFilter] = useState<"ALL" | RiskCategory>("ALL");
     const [selectedPole, setSelectedPole] = useState<Pole | null>(null);
     const [selectedFeeder, setSelectedFeeder] = useState<string | null>(null);
@@ -24,10 +68,13 @@ export function GeospatialAnalysis({ poles, showFeederRanking = true, onSelectPo
 
 
     return <section className={`geospatial-section${showFeederRanking ? "" : " map-only"}`} aria-label="Engineer geospatial analysis">
-        <article className="map-card">
+        <article ref={cardRef} className={`map-card${isFullscreen ? " is-fullscreen" : ""}`}>
             <div className="map-card-heading">
                 <div><h3>Geospatial Analysis</h3><p>Poles coloured by final risk category</p></div>
-                <div className="map-card-tools"><label>Risk filter<select value={riskFilter} onChange={(event) => setRiskFilter(event.target.value as "ALL" | RiskCategory)}><option value="ALL">All risk</option>{categories.map((category) => <option key={category} value={category}>{category}</option>)}</select></label><button className="map-info-button" type="button" aria-label="Map interaction help">i<span>Click marker for details.<br />Double-click marker to open Google Maps.</span></button></div>
+                <div className="map-card-tools"><button ref={fullscreenButtonRef} className="map-fullscreen-button" type="button" onClick={() => void toggleFullscreen()} aria-pressed={isFullscreen} aria-label={isFullscreen ? "Exit fullscreen map" : "View map fullscreen"}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d={isFullscreen ? "M9 3v6H3m18 0h-6V3M3 15h6v6m6 0v-6h6" : "M9 3H3v6m12-6h6v6M3 15v6h6m6 0h6v-6"} /></svg>
+                    {isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+                </button><label>Risk filter<select value={riskFilter} onChange={(event) => setRiskFilter(event.target.value as "ALL" | RiskCategory)}><option value="ALL">All risk</option>{categories.map((category) => <option key={category} value={category}>{category}</option>)}</select></label><button className="map-info-button" type="button" aria-label="Map interaction help">i<span>Click marker for details.<br />Double-click marker to open Google Maps.</span></button></div>
             </div>
             <div className="map-frame">
                 {mapPoles.length === 0 ? <p role="status">No poles with coordinates match these filters.</p> : <MapContainer center={[3.273, 101.36]} zoom={13} scrollWheelZoom className="pole-map">
@@ -51,6 +98,11 @@ export function GeospatialAnalysis({ poles, showFeederRanking = true, onSelectPo
 
 function FitMapToPoles({ poles }: { poles: Pole[] }) {
     const map = useMap();
+    useEffect(() => {
+        const observer = new ResizeObserver(() => map.invalidateSize({ pan: false }));
+        observer.observe(map.getContainer());
+        return () => observer.disconnect();
+    }, [map]);
     useEffect(() => {
         const bounds = latLngBounds(poles.map((pole) => [Number(pole.latitude), Number(pole.longitude)] as [number, number]));
         map.fitBounds(bounds, { padding: [28, 28], maxZoom: 16, animate: false });
