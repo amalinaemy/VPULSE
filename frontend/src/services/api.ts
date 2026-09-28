@@ -2,6 +2,18 @@ const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
   "http://localhost:5042";
 
+async function readApiResponse(response: Response): Promise<any> {
+  const body = await response.text();
+  let data: any;
+  try { data = JSON.parse(body); } catch {
+    throw new Error(response.ok
+      ? 'The API returned an invalid response. Please retry.'
+      : `The server could not complete the request (HTTP ${response.status}). Please retry.`);
+  }
+  if (!response.ok) throw new Error(data?.message ?? data?.detail ?? data?.title ?? `API request failed (HTTP ${response.status}).`);
+  return data;
+}
+
 export async function apiGet<T>(
   endpoint: string
 ): Promise<T> {
@@ -136,6 +148,7 @@ export async function getPoles():
 
       modifiedOn:
         record.modifiedon ??
+        record.modifiedOn ??
         null,
     })
   );
@@ -147,19 +160,79 @@ export interface WorkFeedback {
   modifiedOn: string | null;
 }
 
-export async function getWorkFeedback():
-  Promise<WorkFeedback[]> {
-
-  return apiGet<WorkFeedback[]>(
-    "/api/dataverse/work-feedback"
-  );
+const feedbackCache = new Map<string, { expires: number; data: WorkFeedback[] }>();
+export function invalidateWorkFeedback(poleId?: string) {
+  if (poleId) feedbackCache.delete(poleId.trim());
+  else feedbackCache.clear();
 }
+export async function getWorkFeedback(poleIds: string[], signal?: AbortSignal): Promise<WorkFeedback[]> {
+  const ids = [...new Set(poleIds.map(id => id.trim()).filter(Boolean))];
+  const result: WorkFeedback[][] = new Array(ids.length);
+  let next = 0;
+  const failures: string[] = [];
+  let serviceTimedOut = false;
+  let connectionFailed = false;
+  function fetchFeedback(id: string) {
+    const deadline = AbortSignal.timeout(65000);
+    return fetch(`/api/work-feedback?poleId=${encodeURIComponent(id)}`, {
+      signal: signal ? AbortSignal.any([signal, deadline]) : deadline,
+    });
+  }
+  async function worker() {
+    while (next < ids.length && !serviceTimedOut && !connectionFailed) {
+      signal?.throwIfAborted();
+      const index = next++;
+      const id = ids[index];
+      const cached = feedbackCache.get(id);
+      if (cached && cached.expires > Date.now()) { result[index] = cached.data; continue; }
+      try {
+        let response = await fetchFeedback(id);
+        if ([429, 502, 503].includes(response.status)) {
+          const failure = await response.clone().json().catch(() => null);
+          if (failure?.retryable !== false) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            signal?.throwIfAborted();
+            response = await fetchFeedback(id);
+          }
+        }
+        // Stop scheduling more flow runs when the service is already timing out.
+        if (response.status === 504) serviceTimedOut = true;
+        const data = await readApiResponse(response);
+        if (!Array.isArray(data)) throw new Error('Invalid trimming data response.');
+        feedbackCache.set(id, { expires: Date.now() + 300000, data });
+        result[index] = data;
+      } catch (error) {
+        signal?.throwIfAborted();
+        // Fetch and response-body reads reject when no usable HTTP response arrives.
+        if (error instanceof TypeError || (error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name))) {
+          connectionFailed = true;
+        }
+        failures.push(`${id}: ${error instanceof Error ? error.message : 'Unable to load feedback.'}`);
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(2, ids.length) }, worker));
+  if (connectionFailed) throw new Error("Could not connect to the work-record service. Background requests have stopped. Check your connection, then use Refresh to retry. Successful requests are retained.");
+  if (serviceTimedOut) throw new Error("The work-record service timed out. Background requests have stopped. Successful results are retained; use Refresh to retry after the service recovers. You can still open an individual work form.");
+  if (failures.length) throw new Error(`${failures.length} pole(s) could not load. ${failures[0]} Successful requests are retained; Refresh retries missing data.`);
+  return result.flat();
+}
+
+
+
+/*
+|--------------------------------------------------------------------------
+| Work Form
+|--------------------------------------------------------------------------
+*/
 
 export type WorkFormValue =
   string |
   number |
+  boolean |
   number[] |
   null;
+
 
 export interface WorkFormField {
   name: string;
@@ -167,13 +240,16 @@ export interface WorkFormField {
   type: string;
   required: boolean;
   maxLength: number | null;
+
   options:
     {
       value: number;
       label: string;
     }[] | null;
+
   value: WorkFormValue;
 }
+
 
 export interface WorkFormRecord {
   found?: boolean;
@@ -182,16 +258,82 @@ export interface WorkFormRecord {
   fields: WorkFormField[];
 }
 
-export function getWorkForm(
+
+/*
+|--------------------------------------------------------------------------
+| GET Work Form
+|--------------------------------------------------------------------------
+|
+| React
+|   ↓
+| /api/work-form?poleId=...
+|   ↓
+| Vercel API
+|   ↓
+| Power Automate
+|   ↓
+| LV VM Model
+|
+*/
+
+export async function getWorkForm(
   poleId: string
 ): Promise<WorkFormRecord> {
 
-  return apiGet(
-    `/api/dataverse/work-form?poleId=${
-      encodeURIComponent(poleId)
-    }`
-  );
+  const response =
+    await fetch(
+      `/api/work-form?poleId=${
+        encodeURIComponent(poleId)
+      }`
+    );
+
+
+  if (!response.ok) {
+
+    const error =
+      await response
+        .json()
+        .catch(() => null);
+
+
+    throw new Error(
+      error?.message ??
+      error?.detail ??
+      `Unable to load work form (HTTP ${response.status}).`
+    );
+  }
+
+
+  const data =
+    await response.json();
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Vercel API should return WorkFormRecord
+  |--------------------------------------------------------------------------
+  */
+
+  return data as WorkFormRecord;
 }
+
+
+/*
+|--------------------------------------------------------------------------
+| SAVE Work Form
+|--------------------------------------------------------------------------
+|
+| React
+|   ↓
+| PUT /api/work-form
+|   ↓
+| Vercel API
+|   ↓
+| Power Automate
+|   ↓
+| Add / Update LV VM Model
+|
+*/
 
 export async function saveWorkForm(
   poleId: string,
@@ -202,7 +344,7 @@ export async function saveWorkForm(
 
   const response =
     await fetch(
-      `${API_BASE_URL}/api/dataverse/work-form?poleId=${
+      `/api/work-form?poleId=${
         encodeURIComponent(poleId)
       }`,
       {
@@ -221,16 +363,19 @@ export async function saveWorkForm(
       }
     );
 
+
   if (!response.ok) {
 
     const error =
-      await response.json().catch(
-        () => null
-      );
+      await response
+        .json()
+        .catch(() => null);
+
 
     throw new Error(
+      error?.message ??
       error?.detail ??
-      "Unable to save the work form."
+      `Unable to save work form (HTTP ${response.status}).`
     );
   }
 }

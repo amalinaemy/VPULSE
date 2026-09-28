@@ -3389,3 +3389,67 @@ button {
         align-self: flex-end;
     }
 }
+
+.map-fullscreen-button {
+    display: inline-flex;
+    align-items: center;
+    align-self: end;
+    justify-content: center;
+    gap: 7px;
+    min-height: 36px;
+    padding: 7px 11px;
+    border: 1px solid #b7cce0;
+    border-radius: 9px;
+    background: #fff;
+    color: #183664;
+    font: inherit;
+    font-size: .8rem;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.map-fullscreen-button:hover {
+    background: #edf4fa;
+}
+
+.map-fullscreen-button:focus-visible {
+    outline: 3px solid #3978b7;
+    outline-offset: 3px;
+}
+
+.map-card.is-fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100dvh;
+    margin: 0;
+    border-radius: 0;
+    overflow: auto;
+}
+
+.map-card.is-fullscreen .map-card-heading {
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.map-card.is-fullscreen .map-frame {
+    flex: 1;
+    min-height: 160px;
+    height: auto;
+}
+
+.map-card.is-fullscreen .pole-map {
+    position: absolute;
+    inset: 0;
+    height: 100%;
+    min-height: 0;
+}
+
+.map-card-tools {
+    flex-wrap: wrap;
+}

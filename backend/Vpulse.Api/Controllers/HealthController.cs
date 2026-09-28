@@ -3,17 +3,17 @@ using Microsoft.AspNetCore.Mvc;
 namespace Vpulse.Api.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/health")]
 public class HealthController : ControllerBase
 {
     [HttpGet]
-    public IActionResult Get()
+    public IActionResult GetHealth()
     {
         return Ok(new
         {
-            status = "OK",
+            status = "healthy",
             application = "V-PULSE API",
-            message = "Backend is running"
+            message = "V-PULSE backend is running."
         });
     }
 }

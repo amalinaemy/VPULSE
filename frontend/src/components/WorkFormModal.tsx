@@ -71,12 +71,13 @@ export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
     function readImage(name: string, event: ChangeEvent<HTMLInputElement>) {
         const file = event.target.files?.[0];
         if (!file) return;
-        if (file.size > 4 * 1024 * 1024 || !["image/jpeg", "image/png"].includes(file.type)) {
-            setError("Choose a JPG or PNG image of 4 MB or smaller.");
+        if (file.size > 1.5 * 1024 * 1024 || !["image/jpeg", "image/png"].includes(file.type)) {
+            setError("Choose a JPG or PNG image of 1.5 MB or smaller.");
             event.target.value = "";
             return;
         }
 
+        setError("");
         setReadingImages(count => count + 1);
         const reader = new FileReader();
         reader.onload = () => updateField(name, String(reader.result));
@@ -128,6 +129,7 @@ export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
                 </header>
 
                 {error && <p role="alert" className="work-form-error">{error}</p>}
+                {record?.found === false && <p role="status">No existing work record was found for this pole. Pole details are prefilled below.</p>}
                 {!record && !error && <p role="status">Loading work form…</p>}
 
                 <fieldset disabled={saving || saved} className="work-form-fields">
@@ -136,7 +138,7 @@ export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
                             key={field.name}
                             className={field.name === "cr1da_remarksactiontaken" ? "work-form-remarks" : undefined}
                         >
-                            <span>{field.required && <b aria-hidden="true">* </b>}{field.label}</span>
+                            <span>{field.required && !isLockedField(field) && <b aria-hidden="true">* </b>}{field.label}</span>
                             <FormField
                                 field={field}
                                 value={values[field.name]}
@@ -169,7 +171,7 @@ function FormField({ field, value, onChange, onImageChange }: FormFieldProps) {
         return (
             <select
                 disabled={locked}
-                required={field.required}
+                required={field.required && !locked}
                 multiple={field.type === "multiselect"}
                 value={Array.isArray(value) ? value.map(String) : String(value ?? "")}
                 onChange={event => onChange(
@@ -192,9 +194,10 @@ function FormField({ field, value, onChange, onImageChange }: FormFieldProps) {
                 <input
                     type="file"
                     accept="image/jpeg,image/png"
-                    required={field.required && !value}
+                    required={field.required && !locked && !value}
                     onChange={onImageChange}
                 />
+                <small>JPG or PNG, up to 1.5 MB. A selected image replaces this photo when saved.</small>
                 {typeof value === "string" && value.startsWith("data:image/") && (
                     <img src={value} alt={field.label} />
                 )}
@@ -206,7 +209,7 @@ function FormField({ field, value, onChange, onImageChange }: FormFieldProps) {
         return (
             <textarea
                 rows={3}
-                required={field.required}
+                required={field.required && !locked}
                 maxLength={field.maxLength ?? undefined}
                 value={String(value ?? "")}
                 onChange={event => onChange(event.target.value)}
@@ -217,7 +220,7 @@ function FormField({ field, value, onChange, onImageChange }: FormFieldProps) {
     return (
         <input
             readOnly={locked}
-            required={field.required}
+            required={field.required && !locked}
             maxLength={field.maxLength ?? undefined}
             type={field.type === "number" ? "number" : field.type === "date" ? "date" : "text"}
             max={field.name === "cr1da_inspectiondate" ? today : undefined}

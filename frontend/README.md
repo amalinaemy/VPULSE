@@ -30,3 +30,14 @@ If you are developing a production application, we recommend enabling type-aware
 ```
 
 See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+
+Command to push to github
+cd /Users/amalina/Documents/Projects/V-PULSE
+
+git add frontend/src/services/api.ts \
+  frontend/src/components/WorkFormModal.tsx \
+  frontend/src/components/EngineerHierarchyTable.tsx
+
+git diff --cached
+git commit -m "comments___"
+git push
