@@ -159,7 +159,7 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
         : error ? <p className="loading">{error}</p> : priorityPoles.length === 0 ?
         <p className="loading">No Critical or High poles found.</p> : <>
             <div className="field-team-map">
-                <GeospatialAnalysis poles={priorityPoles} showFeederRanking={false} onViewDetails={setSelectedPole} />
+                <GeospatialAnalysis poles={priorityPoles} onSelectPole={openPendingPole} onViewDetails={setSelectedPole} />
                 <article className="feeder-ranking-card critical-pending-card">
                     <div className="critical-pending-heading">
                         <div><p>Pending work analysis</p><h3>Critical Pending Work</h3></div>

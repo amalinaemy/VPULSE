@@ -2762,7 +2762,7 @@ button {
 .field-team-map {
     display: grid;
     width: 100%;
-    grid-template-columns: minmax(0, 2fr) minmax(300px, .85fr);
+    grid-template-columns: minmax(0, 1fr);
     gap: 18px;
     align-items: stretch;
     margin: 0 auto;
