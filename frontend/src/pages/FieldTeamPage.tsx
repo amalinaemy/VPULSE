@@ -67,7 +67,7 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
     ), [priorityPoles, trimmingWorkByPole]);
     const filteredPoles = useMemo(() => priorityPoles.filter((pole) => {
         const query = search.trim().toLowerCase();
-        if (query && ![pole.poleId, pole.feederId, pole.streetName]
+        if (query && ![pole.poleId, pole.feederId, pole.streetName, pole.substation]
             .some((value) => (value ?? "").toLowerCase().includes(query))) return false;
         if (riskFilter !== "All" && riskLevel(pole) !== riskFilter) return false;
         if (feedbackUnavailable || trimmingFilter === "All") return true;
@@ -191,7 +191,7 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
                     {/*Search and filter controls*/}
                     <div className="field-work-pack-tools">
                         <label className="field-pole-search">Search poles
-                            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Pole ID, Feeder ID, or Street Name" type="search" />
+                            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Pole ID, Feeder ID, Street Name, or Substation" type="search" />
                         </label>
                         <label>Risk category
                             <select value={riskFilter} onChange={(event) => setRiskFilter(event.target.value as RiskFilter)}>

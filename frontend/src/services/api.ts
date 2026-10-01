@@ -160,6 +160,8 @@ export async function getPoles():
       workOrderStatus: record["cr1da_workorderstatus@OData.Community.Display.V1.FormattedValue"] ?? record.cr1da_workorderstatus ?? null,
       aiValidation: record["cr1da_aivalidation@OData.Community.Display.V1.FormattedValue"] ?? record.cr1da_aivalidation ?? null,
 
+      substation: record.substation ?? record.cr1da_feederidentifier ?? null,
+
       modifiedOn:
         record.modifiedon ??
         record.modifiedOn ??
