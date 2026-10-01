@@ -95,7 +95,7 @@ export function GeospatialAnalysis({ poles, showFeederRanking = true, onSelectPo
             </div>
         </article>
         {showFeederRanking && <article className="feeder-ranking-card">
-            <p>Feeder analysis</p><h3>Feeder Priority Ranking</h3><span>Ranked by critical-pole count, then highest risk score.</span>
+            <p>Analysis</p><h3>Priority Ranking</h3><span>Ranked by critical-pole count, then highest risk score.</span>
             <ol>{feederRanking.map((feeder, index) => <li key={feeder.id}><button className={`feeder-rank-button${activeFeeder === feeder.id ? " is-selected" : ""}`} type="button" aria-pressed={activeFeeder === feeder.id} onClick={() => { setSelectedFeeder(activeFeeder === feeder.id ? null : feeder.id); setSelectedPole(null); }}><span><b>{index + 1}. {feeder.id}</b><small>{feeder.poleCount} poles · {feeder.criticalCount} critical</small></span><strong title="Highest pole risk score in this feeder">{feeder.maxScore >= 0 ? feeder.maxScore : "—"}</strong></button></li>)}</ol>
             {activeFeeder !== null && <section className="feeder-urgent-list" aria-live="polite"><div><p>Urgent poles</p><h4>{activeFeeder}</h4></div>{urgentFeederPoles.length === 0 ? <span className="no-critical-poles">No Critical poles in this feeder.</span> : <ol>{urgentFeederPoles.map((pole, index) => <li key={`${pole.poleId ?? "pole"}-${index}`}><button className="urgent-pole-button" type="button" onClick={() => onSelectPole?.(pole)} disabled={!onSelectPole}><span><b>{pole.poleId ?? "Unnamed pole"}</b><small>{pole.landCoverType ?? "Unknown land cover"}</small></span><strong>{pole.finalAiRiskScore ?? "—"}</strong></button></li>)}</ol>}</section>}
         </article>}
