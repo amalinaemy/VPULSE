@@ -3455,3 +3455,15 @@ button {
 .map-card-tools {
     flex-wrap: wrap;
 }
+
+.map-substation-selection {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+    gap: 10px;
+    margin-bottom: 12px;
+    color: #183664;
+    font-size: .85rem;
+}
