@@ -135,6 +135,8 @@ test('field work pack and form buttons remain available while feedback loads or 
   const React=await import('react');
   const {renderToStaticMarkup}=await import('react-dom/server');
   let source=await readFile(new URL('../src/pages/FieldTeamPage.tsx',import.meta.url),'utf8');
+  source=source.replace(/import \{ LineTypeFilter \}[^;]+;/, 'const LineTypeFilter = () => null;')
+    .replace('"../services/lineType"',JSON.stringify(new URL('../src/services/lineType.ts',import.meta.url).href));
   source=source.replace(/import \{ StateFilter \}[^;]+;\s*import \{ useStateFilter \}[^;]+;/, 'const StateFilter = () => null; const useStateFilter = (poles) => ({poles, states: [], selection: null, setSelection: () => {}});').replace(/import \{ WorkFormModal \}[^;]+;/,'const WorkFormModal = () => null;')
     .replace(/import \{ GeospatialAnalysis \}[^;]+;/,'const GeospatialAnalysis = () => null;')
     .replace(/import \{ PoleDetailsModal \}[^;]+;/,'const PoleDetailsModal = () => null;')

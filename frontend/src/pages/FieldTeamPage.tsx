@@ -1,3 +1,5 @@
+import { LineTypeFilter } from "../components/LineTypeFilter";
+import { matchesLineType, type LineTypeFilterValue } from "../services/lineType";
 import { StateFilter } from "../components/StateFilter";
 import { useStateFilter } from "../services/useStateFilter";
 import { WorkFormModal } from "../components/WorkFormModal";
@@ -24,7 +26,9 @@ type RiskFilter = "All" | "CRITICAL" | "HIGH";
 const pageSize = 10;
 
 export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error, onWorkFormSaved, feedbackLoading, feedbackError, onRefreshFeedback }: FieldTeamPageProps) {
-    const { poles, states, selection, setSelection } = useStateFilter(allPoles);
+    const { poles: statePoles, states, selection, setSelection } = useStateFilter(allPoles);
+    const [lineType, setLineType] = useState<LineTypeFilterValue>("ALL");
+    const poles = useMemo(() => statePoles.filter(pole => matchesLineType(pole.lineType, lineType)), [statePoles, lineType]);
     const feedbackUnavailable = feedbackLoading || !!feedbackError;
     const [formPole, setFormPole] = useState<Pole | null>(null);
     const [trimmingFilter, setTrimmingFilter] = useState<TrimmingFilter>("All");
@@ -139,6 +143,7 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
             <p>Execution-focused view for task selection, route opening, completion status and evidence collection.</p>
             <div className="pill-row"><span>Field validation</span></div>
         </section>
+        <LineTypeFilter value={lineType} onChange={value => { setLineType(value); setSelectedPole(null); setPage(1); setTargetPoleId(null); setFormPole(null); }} />
         <StateFilter states={states} selection={selection} count={poles.length} onChange={value => { setSelection(value); setPage(1); setSelectedPole(null); setTargetPoleId(null); }} />
         <section className="metrics field-team-metrics">
             <FieldMetric label="Today Work Pack" value={priorityPoles.length} note="Critical + High tasks" />
@@ -157,7 +162,7 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
         {isLoading ?
         <p className="loading">Loading field work pack…</p>
         : error ? <p className="loading">{error}</p> : priorityPoles.length === 0 ?
-        <p className="loading">No Critical or High poles found.</p> : <>
+        <p className="loading">No Critical or High poles match the selected state and line type filters.</p> : <>
             <div className="field-team-map">
                 <GeospatialAnalysis poles={priorityPoles} onSelectPole={openPendingPole} onViewDetails={setSelectedPole} />
                 <article className="feeder-ranking-card critical-pending-card">
