@@ -146,6 +146,8 @@ export async function getPoles():
         record.cr1da_landcovertype ??
         null,
 
+      substation: record.substation ?? record.cr1da_feederidentifier ?? null,
+
       modifiedOn:
         record.modifiedon ??
         record.modifiedOn ??

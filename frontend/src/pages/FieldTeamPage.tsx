@@ -63,7 +63,7 @@ export function FieldTeamPage({ poles, workFeedback, isLoading, error, feedbackL
     ), [priorityPoles, trimmingWorkByPole]);
     const filteredPoles = useMemo(() => priorityPoles.filter((pole) => {
         const query = search.trim().toLowerCase();
-        if (query && ![pole.poleId, pole.feederId, pole.streetName]
+        if (query && ![pole.poleId, pole.feederId, pole.streetName, pole.substation]
             .some((value) => (value ?? "").toLowerCase().includes(query))) return false;
         if (riskFilter !== "All" && riskLevel(pole) !== riskFilter) return false;
         if (trimmingFilter === "All") return true;
@@ -152,7 +152,7 @@ export function FieldTeamPage({ poles, workFeedback, isLoading, error, feedbackL
         : error ? <p className="loading">{error}</p> : priorityPoles.length === 0 ? 
         <p className="loading">No Critical or High poles found.</p> : <>
             <div className="field-team-map">
-                <GeospatialAnalysis poles={priorityPoles} showFeederRanking={false} onViewDetails={setSelectedPole} />
+                <GeospatialAnalysis poles={priorityPoles} onSelectPole={openPendingPole} onViewDetails={setSelectedPole} />
                 <article className="feeder-ranking-card critical-pending-card">
                     <div className="critical-pending-heading">
                         <div><p>Pending work analysis</p><h3>Critical Pending Work</h3></div>
@@ -184,7 +184,7 @@ export function FieldTeamPage({ poles, workFeedback, isLoading, error, feedbackL
                     {/*Search and filter controls*/}
                     <div className="field-work-pack-tools">
                         <label className="field-pole-search">Search poles
-                            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Pole ID, Feeder ID, or Street Name" type="search" />
+                            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Pole ID, Feeder ID, Street Name, or Substation" type="search" />
                         </label>
                         <label>Risk category
                             <select value={riskFilter} onChange={(event) => setRiskFilter(event.target.value as RiskFilter)}>
