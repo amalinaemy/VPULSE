@@ -46,7 +46,7 @@ export function GeospatialAnalysis({ poles, showFeederRanking = true, onSelectPo
             try {
                 await cardRef.current?.requestFullscreen();
             } catch {
-                // Use a viewport-filling view when browser fullscreen is unavailable.
+                // viewport-filling view when browser fullscreen is unavailable.
             }
             setIsFullscreen(true);
         }
@@ -96,8 +96,26 @@ export function GeospatialAnalysis({ poles, showFeederRanking = true, onSelectPo
         </article>
         {showFeederRanking && <article className="feeder-ranking-card">
             <p>Analysis</p><h3>Priority Ranking</h3><span>Ranked by critical-pole count, then highest risk score.</span>
-            <ol>{feederRanking.map((feeder, index) => <li key={feeder.id}><button className={`feeder-rank-button${activeFeeder === feeder.id ? " is-selected" : ""}`} type="button" aria-pressed={activeFeeder === feeder.id} onClick={() => { setSelectedFeeder(activeFeeder === feeder.id ? null : feeder.id); setSelectedPole(null); }}><span><b>{index + 1}. {feeder.id}</b><small>{feeder.poleCount} poles · {feeder.criticalCount} critical</small></span><strong title="Highest pole risk score in this feeder">{feeder.maxScore >= 0 ? feeder.maxScore : "—"}</strong></button></li>)}</ol>
-            {activeFeeder !== null && <section className="feeder-urgent-list" aria-live="polite"><div><p>Urgent poles</p><h4>{activeFeeder}</h4></div>{urgentFeederPoles.length === 0 ? <span className="no-critical-poles">No Critical poles in this feeder.</span> : <ol>{urgentFeederPoles.map((pole, index) => <li key={`${pole.poleId ?? "pole"}-${index}`}><button className="urgent-pole-button" type="button" onClick={() => onSelectPole?.(pole)} disabled={!onSelectPole}><span><b>{pole.poleId ?? "Unnamed pole"}</b><small>{pole.landCoverType ?? "Unknown land cover"}</small></span><strong>{pole.finalAiRiskScore ?? "—"}</strong></button></li>)}</ol>}</section>}
+            <ol>{feederRanking.map((feeder, index) => <li key={feeder.id}>
+                <button className={`feeder-rank-button${activeFeeder === feeder.id ? " is-selected" : ""}`} type="button" aria-pressed={activeFeeder === feeder.id} onClick={() => { setSelectedFeeder(activeFeeder === feeder.id ? null : feeder.id); setSelectedPole(null); }}>
+                    <span>
+                        <b>{index + 1}. {feeder.id}</b>
+                        <small>{feeder.poleCount} poles · {feeder.criticalCount} critical</small>
+                        </span><strong title="Highest pole risk score in this feeder">{feeder.maxScore >= 0 ? feeder.maxScore : "—"}</strong>
+                        </button>
+                        </li>)}</ol>
+            {activeFeeder !== null && <section className="feeder-urgent-list" aria-live="polite">
+                <div>
+                    <p>Urgent poles</p>
+                    <h4>{activeFeeder}</h4>
+                    </div>{urgentFeederPoles.length === 0 ? <span className="no-critical-poles">No Critical poles in this feeder.</span> : <ol>{urgentFeederPoles.map((pole, index) => <li key={`${pole.poleId ?? "pole"}-${index}`}>
+                        <button className="urgent-pole-button" type="button" onClick={() => onSelectPole?.(pole)} disabled={!onSelectPole}>
+                            <span>
+                                <b>{pole.poleId ?? "Unnamed pole"}</b>
+                                <small>{pole.landCoverType ?? "Unknown land cover"}</small>
+                                </span>
+                                <strong>{pole.finalAiRiskScore ?? "—"}</strong>
+                                </button></li>)}</ol>}</section>}
         </article>}
     </section>;
 }
@@ -149,7 +167,11 @@ function PoleDetails({ pole, onClose, onViewDetails }: { pole: Pole; onClose: ()
         <p>Land cover: <b>{pole.landCoverType ?? "Not recorded"}</b></p>
         <p>Coordinates: {pole.latitude ?? "—"}, {pole.longitude ?? "—"}</p>
         <p>Source: Dataverse AI output</p>
-        <div className="pole-detail-actions">{onViewDetails ? <button className="view-pole-details" type="button" onClick={() => onViewDetails(pole)}>View Details</button> : <a className="view-pole-details" href="#pole-risk-records">View Details</a>}<button className="open-maps-button" type="button" onClick={() => openGoogleMaps(pole)}>Google Map</button></div>
+        <div className="pole-detail-actions">{onViewDetails ?
+            <button className="view-pole-details" type="button" onClick={() => onViewDetails(pole)}>View Details</button>
+             : <a className="view-pole-details" href="#pole-risk-records">View Details</a>}
+             <button className="open-maps-button" type="button" onClick={() => openGoogleMaps(pole)}>Google Map</button>
+             </div>
     </aside>;
 }
 

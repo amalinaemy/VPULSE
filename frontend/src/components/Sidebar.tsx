@@ -25,7 +25,7 @@ export function Sidebar({ activeView, isOpen, onClose, onViewChange }: SidebarPr
                 <NavButton active={activeView === "home"} onClick={() => onViewChange("home")}>Home</NavButton>
                 <span className="nav-label">Operational Command Centre View</span>
                 <div className="subnav">
-                    <NavButton active={activeView === "executive"} onClick={() => onViewChange("executive")}>Executive </NavButton>
+                    <NavButton active={activeView === "executive"} onClick={() => onViewChange("executive")}>Dashboard</NavButton>
                     <NavButton active={activeView === "engineer"} onClick={() => onViewChange("engineer")}>Engineer </NavButton>
                     <NavButton active={activeView === "field"} onClick={() => onViewChange("field")}>Field Team </NavButton>
                 </div>
@@ -33,7 +33,7 @@ export function Sidebar({ activeView, isOpen, onClose, onViewChange }: SidebarPr
                 <NavButton active={activeView === "information"} onClick={() => onViewChange("information")}>Information</NavButton>
                 <span className="nav-label secondary">Data source &amp; AI run</span>
                 <NavButton active={activeView === workFormView} onClick={() => onViewChange(workFormView)}>Work Digital Form</NavButton>
-                <button className="nav-item muted-nav" type="button">AI Model Architecture</button>
+
             </nav>
         </aside>
     );
