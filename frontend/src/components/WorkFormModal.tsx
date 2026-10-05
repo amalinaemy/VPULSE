@@ -131,6 +131,11 @@ export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
                     <button type="button" onClick={onClose} disabled={saving} aria-label="Close form">×</button>
                 </header>
 
+                <dl className="work-form-pole-context" aria-label="Pole assessment details">
+                    <div><dt>Land Cover Type</dt><dd>{pole.landCoverType?.trim() || "Not recorded"}</dd></div>
+                    <div><dt>Recommended Action</dt><dd>{pole.action?.trim() || "Not recorded"}</dd></div>
+                </dl>
+
                 {error && <p role="alert" className="work-form-error">{error}</p>}
                 {record?.found === false && <p role="status">No existing work record was found for this pole. Pole details are prefilled below.</p>}
                 {!record && error && <button type="button" onClick={() => setLoadAttempt(attempt => attempt + 1)}>Retry loading form</button>}
