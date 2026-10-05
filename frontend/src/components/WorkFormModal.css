@@ -19,6 +19,6 @@
 .work-form-fields .work-form-remarks { grid-column: 1 / -1; }
 .work-form-fields textarea { resize: vertical; }
 
-.work-form-pole-context { display: grid; gap: 14px; margin: 0 0 24px; padding: 16px; border: 1px solid #c2d3e1; border-radius: 10px; background: #778eda; }
+.work-form-pole-context { display: grid; gap: 14px; margin: 0 0 24px; padding: 16px; border: 1px solid #c2d3e1; border-radius: 10px; background: #f0f2f6; }
 .work-form-pole-context dt { margin-bottom: 4px; color: #46617e; font-size: .8rem; font-weight: 700; }
 .work-form-pole-context dd { margin: 0; color: #102f63; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
