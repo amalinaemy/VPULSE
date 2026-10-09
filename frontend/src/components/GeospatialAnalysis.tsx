@@ -52,7 +52,7 @@ export function GeospatialAnalysis({ poles, showFeederRanking = true, onSelectPo
         }
     }
 
-    const [riskFilter, setRiskFilter] = useState<"ALL" | RiskCategory>("ALL");
+    const [riskFilter, setRiskFilter] = useState<RiskCategory[]>([...categories]);
     const [selectedPole, setSelectedPole] = useState<Pole | null>(null);
     const [selectedFeeder, setSelectedFeeder] = useState<string | null>(null);
     const feederRanking = useMemo(() => rankFeeders(poles), [poles]);
@@ -62,7 +62,7 @@ export function GeospatialAnalysis({ poles, showFeederRanking = true, onSelectPo
     const mapPoles = useMemo(() => poles
         .filter(hasCoordinates)
         .filter((pole) => activeFeeder === null || substationName(pole) === activeFeeder)
-        .filter((pole) => riskFilter === "ALL" || riskLevel(pole) === riskFilter), [poles, riskFilter, activeFeeder]);
+        .filter((pole) => riskFilter.includes(riskLevel(pole))), [poles, riskFilter, activeFeeder]);
     const urgentFeederPoles = useMemo(() => activeFeeder === null ? [] : poles
         .filter((pole) => substationName(pole) === activeFeeder)
         .filter((pole) => riskLevel(pole) === "CRITICAL")
@@ -81,7 +81,7 @@ export function GeospatialAnalysis({ poles, showFeederRanking = true, onSelectPo
                 </button><label>Substation<select value={activeFeeder ?? ""} onChange={event => { setSelectedFeeder(event.target.value || null); setSelectedPole(null); }}>
                     <option value="">All substations</option>
                     {substations.map(name => <option key={name} value={name}>{name}</option>)}
-                </select></label><label>Risk filter<select value={riskFilter} onChange={(event) => setRiskFilter(event.target.value as "ALL" | RiskCategory)}><option value="ALL">All risk</option>{categories.map((category) => <option key={category} value={category}>{category}</option>)}</select></label><button className="map-info-button" type="button" aria-label="Map interaction help">i<span>Click marker for details.<br />Double-click marker to open Google Maps.</span></button></div>
+                </select></label><MapRiskFilter selected={riskFilter} onChange={setRiskFilter} /><button className="map-info-button" type="button" aria-label="Map interaction help">i<span>Click marker for details.<br />Double-click marker to open Google Maps.</span></button></div>
             </div>
             {activeFeeder !== null && <div className="map-substation-selection">
                 <span role="status">Substation: <strong>{activeFeeder}</strong> · {mapPoles.length} mapped poles</span>
@@ -198,4 +198,40 @@ function rankFeeders(poles: Pole[]) {
     });
     return [...totals.entries()].map(([id, total]) => ({ id, ...total, averageScore: total.poleCount ? total.total / total.poleCount : 0 }))
         .sort((first, second) => second.criticalCount - first.criticalCount || second.averageScore - first.averageScore).slice(0, 5);
+}
+
+
+function MapRiskFilter({ selected, onChange }: { selected: RiskCategory[]; onChange: (value: RiskCategory[]) => void }) {
+    const dropdownRef = useRef<HTMLDetailsElement>(null);
+    const allSelected = selected.length === categories.length;
+    useEffect(() => {
+        const closeOutside = (event: PointerEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) dropdownRef.current.open = false;
+        };
+        document.addEventListener("pointerdown", closeOutside);
+        return () => document.removeEventListener("pointerdown", closeOutside);
+    }, []);
+    return <div className="map-risk-filter">
+        <span className="map-risk-filter-label">Risk filter</span>
+        <details ref={dropdownRef} onKeyDown={event => {
+            if (event.key === "Escape" && event.currentTarget.open) {
+                event.stopPropagation();
+                event.currentTarget.open = false;
+                event.currentTarget.querySelector("summary")?.focus();
+            }
+        }} onBlur={event => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) event.currentTarget.open = false;
+        }}>
+            <summary aria-label={`Risk filter: ${allSelected ? "All risk" : selected.length ? selected.join(", ") : "No risk selected"}`}>
+                {allSelected ? "All risk" : selected.length === 0 ? "No risk selected" : selected.length === 1 ? selected[0] : `${selected.length} risks selected`}
+            </summary>
+            <div className="map-risk-options" role="group" aria-label="Select risk categories">
+                <label><input type="checkbox" checked={allSelected} onChange={() => onChange(allSelected ? [] : [...categories])} />All risk</label>
+                {categories.map(category => <label key={category}>
+                    <input type="checkbox" checked={selected.includes(category)} onChange={event => onChange(event.target.checked ? [...selected, category] : selected.filter(value => value !== category))} />
+                    {category}
+                </label>)}
+            </div>
+        </details>
+    </div>;
 }
