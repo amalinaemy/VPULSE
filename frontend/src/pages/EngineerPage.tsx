@@ -88,7 +88,7 @@ export function PoleDetailsModal({ pole, workFeedback, onClose }: { pole: Pole; 
                 <Detail label="AI risk score" value={pole.aiRiskScore} />
                 <Detail label="Trimming work status" value={statusLoading ? "Loading…" : statusError ? "Unavailable — reopen details to retry" : poleTrimmingStatus(pole.poleId, workFeedback)} />
                 <Detail label="AI validation" value={pole.aiValidation} />
-                <Detail label="Modified on" value={formatDate(pole.modifiedOn)} />
+                <Detail label="Modified on" value={formatModifiedOn(pole.modifiedOn)} />
             </dl>
             <div className="pole-modal-actions"><button type="button" onClick={openMap}>Open Google Maps</button></div>
         </section>
@@ -98,6 +98,15 @@ export function PoleDetailsModal({ pole, workFeedback, onClose }: { pole: Pole; 
 function Detail({ label, value }: { label: string; value?: string | number | null }) { return <div><dt>{label}</dt><dd>{display(value)}</dd></div>; }
 function display(value?: string | number | null) { return value === null || value === undefined || value === "" ? "—" : value; }
 function formatDate(value?: string | null) { return value ? new Date(value).toLocaleString() : "—"; }
+function formatModifiedOn(value?: string | null) {
+    if (!value || !Number.isFinite(Date.parse(value))) return "—";
+    return new Date(value).toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        timeZone: "Asia/Kuala_Lumpur",
+    });
+}
 
 function riskLevel(pole: Pole): RiskCategory {
     const category = pole.finalAiRiskCategory?.toString().trim().toUpperCase();
