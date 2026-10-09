@@ -164,7 +164,7 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
         : error ? <p className="loading">{error}</p> : poles.length === 0 ?
         <p className="loading">No poles match the selected state and line type filters.</p> : <>
             <div className="field-team-map">
-                <GeospatialAnalysis poles={poles} onSelectPole={openPendingPole} onViewDetails={setSelectedPole} />
+                <GeospatialAnalysis poles={poles} onSelectPole={openPendingPole} onViewDetails={setSelectedPole} onOpenForm={setFormPole} />
                 <article className="feeder-ranking-card critical-pending-card">
                     <div className="critical-pending-heading">
                         <div><p>Pending work analysis</p><h3>Critical Pending Work</h3></div>

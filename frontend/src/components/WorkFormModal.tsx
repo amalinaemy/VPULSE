@@ -1,3 +1,4 @@
+import { MapModalPortal } from "./MapModalPortal";
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import {
     getWorkForm,
@@ -113,7 +114,7 @@ export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
     }
 
     return (
-        <dialog
+        <MapModalPortal><dialog
             ref={dialog}
             className="work-form-dialog"
             aria-labelledby="work-form-title"
@@ -167,7 +168,7 @@ export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
                     </button>
                 </footer>
             </form>
-        </dialog>
+        </dialog></MapModalPortal>
     );
 }
 

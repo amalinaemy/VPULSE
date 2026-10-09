@@ -3482,3 +3482,5 @@ button {
 .map-risk-options { position: absolute; z-index: 1200; top: calc(100% + 5px); right: 0; min-width: 180px; padding: 8px; border: 1px solid #b7cce0; border-radius: 10px; background: #fff; box-shadow: 0 6px 18px #16366530; }
 .map-card-tools .map-risk-options label { display: flex; align-items: center; gap: 9px; padding: 8px; font-size: .8rem; font-weight: 650; text-transform: none; letter-spacing: normal; cursor: pointer; }
 .map-risk-options input { width: 17px; height: 17px; margin: 0; accent-color: #087e98; }
+
+.pole-detail-actions { flex-wrap: wrap; }

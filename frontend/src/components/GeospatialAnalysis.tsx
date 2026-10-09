@@ -7,7 +7,7 @@ import type { Pole } from "../services/api";
 const categories = ["CRITICAL", "HIGH", "MEDIUM", "LOW"] as const;
 type RiskCategory = typeof categories[number];
 
-export function GeospatialAnalysis({ poles, showFeederRanking = true, onSelectPole, onViewDetails }: { poles: Pole[]; showFeederRanking?: boolean; onSelectPole?: (pole: Pole) => void; onViewDetails?: (pole: Pole) => void }) {
+export function GeospatialAnalysis({ poles, showFeederRanking = true, onSelectPole, onViewDetails, onOpenForm }: { poles: Pole[]; showFeederRanking?: boolean; onSelectPole?: (pole: Pole) => void; onViewDetails?: (pole: Pole) => void; onOpenForm?: (pole: Pole) => void }) {
     const cardRef = useRef<HTMLElement>(null);
     const fullscreenButtonRef = useRef<HTMLButtonElement>(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
@@ -96,7 +96,7 @@ export function GeospatialAnalysis({ poles, showFeederRanking = true, onSelectPo
                     </Marker>)}
                 </MapContainer>}
                 <div className="map-legend">{categories.map((category) => <span key={category} className={`map-legend-${category.toLowerCase()}`}><i />{category[0]}{category.slice(1).toLowerCase()}</span>)}</div>
-                {selectedPole && mapPoles.includes(selectedPole) && <PoleDetails pole={selectedPole} onClose={() => setSelectedPole(null)} onViewDetails={onViewDetails} />}
+                {selectedPole && mapPoles.includes(selectedPole) && <PoleDetails pole={selectedPole} onClose={() => setSelectedPole(null)} onViewDetails={onViewDetails} onOpenForm={onOpenForm} />}
             </div>
         </article>
         {showFeederRanking && <article className="feeder-ranking-card">
@@ -160,7 +160,7 @@ function markerNumber(pole: Pole) {
 }
 function openGoogleMaps(pole: Pole) { window.open(`https://www.google.com/maps?q=${pole.latitude},${pole.longitude}`, "_blank", "noopener,noreferrer"); }
 
-function PoleDetails({ pole, onClose, onViewDetails }: { pole: Pole; onClose: () => void; onViewDetails?: (pole: Pole) => void }) {
+function PoleDetails({ pole, onClose, onViewDetails, onOpenForm }: { pole: Pole; onClose: () => void; onViewDetails?: (pole: Pole) => void; onOpenForm?: (pole: Pole) => void }) {
     const category = riskLevel(pole);
     return <aside className="pole-details-panel" aria-label={`Details for ${pole.poleId ?? "pole"}`}>
         <button className="pole-details-close" type="button" onClick={onClose} aria-label="Close pole details">×</button>
@@ -175,6 +175,7 @@ function PoleDetails({ pole, onClose, onViewDetails }: { pole: Pole; onClose: ()
         <div className="pole-detail-actions">{onViewDetails ?
             <button className="view-pole-details" type="button" onClick={() => onViewDetails(pole)}>View Details</button>
              : <a className="view-pole-details" href="#pole-risk-records">View Details</a>}
+             {onOpenForm && <button className="open-maps-button" type="button" disabled={!pole.poleId?.trim()} onClick={() => onOpenForm(pole)}>Form</button>}
              <button className="open-maps-button" type="button" onClick={() => openGoogleMaps(pole)}>Google Map</button>
              </div>
     </aside>;
