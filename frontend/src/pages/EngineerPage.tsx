@@ -1,5 +1,4 @@
 import { MapModalPortal } from "../components/MapModalPortal";
-import { WorkFormModal } from "../components/WorkFormModal";
 import { LineTypeFilter } from "../components/LineTypeFilter";
 import { matchesLineType, type LineTypeFilterValue } from "../services/lineType";
 import { StateFilter } from "../components/StateFilter";
@@ -13,11 +12,10 @@ import { EngineerHierarchyTable } from "../components/EngineerHierarchyTable";
 const riskLevels = ["CRITICAL", "HIGH", "MEDIUM", "LOW"] as const;
 type RiskCategory = typeof riskLevels[number];
 
-export function EngineerPage({ poles: allPoles, workFeedback, isLoading, error, onWorkFormSaved }: { onWorkFormSaved: () => Promise<void>; poles: Pole[]; workFeedback: WorkFeedback[]; isLoading: boolean; error: string | null }) {
+export function EngineerPage({ poles: allPoles, workFeedback, isLoading, error }: { poles: Pole[]; workFeedback: WorkFeedback[]; isLoading: boolean; error: string | null }) {
     const { poles: statePoles, states, selection, setSelection } = useStateFilter(allPoles);
     const [lineType, setLineType] = useState<LineTypeFilterValue>("ALL");
     const poles = useMemo(() => statePoles.filter(pole => matchesLineType(pole.lineType, lineType)), [statePoles, lineType]);
-    const [formPole, setFormPole] = useState<Pole | null>(null);
     const [selectedPole, setSelectedPole] = useState<Pole | null>(null);
     const [hierarchyTarget, setHierarchyTarget] = useState<{ pole: Pole; request: number } | null>(null);
 
@@ -43,10 +41,9 @@ export function EngineerPage({ poles: allPoles, workFeedback, isLoading, error, 
         {!isLoading && !error && poles.length > 0 && <section className="risk-insights" aria-label="Risk overview"><div className="risk-summary-cards">
             {riskLevels.map((category) => <article className={`risk-summary-card risk-${category.toLowerCase()}`} key={category}><span>{category}</span><strong>{riskSummary[category]}</strong><small>poles</small></article>)}
         </div></section>}
-        {!isLoading && !error && poles.length > 0 && <GeospatialAnalysis poles={poles} onSelectPole={openPoleRecord} onViewDetails={setSelectedPole} onOpenForm={setFormPole} />}
+        {!isLoading && !error && poles.length > 0 && <GeospatialAnalysis poles={poles} onSelectPole={openPoleRecord} onViewDetails={setSelectedPole} />}
         {!isLoading && !error && poles.length === 0 && <p role="status">No poles match the selected state and line type filters.</p>}
         <EngineerHierarchyTable workFeedback={workFeedback} poles={poles} isLoading={isLoading} error={error} targetRequest={hierarchyTarget} />
-                {formPole && <WorkFormModal pole={formPole} onClose={() => setFormPole(null)} onSaved={onWorkFormSaved} />}
                 {selectedPole && <PoleDetailsModal workFeedback={workFeedback} pole={selectedPole} onClose={() => setSelectedPole(null)} />}
             </>;
 }

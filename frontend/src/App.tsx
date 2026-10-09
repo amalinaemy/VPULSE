@@ -210,7 +210,6 @@ function App() {
             case "engineer":
                 return (
                     <EngineerPage
-                        onWorkFormSaved={async () => { invalidateWorkFeedback(); setFeedbackRefresh(value => value + 1); }}
                         workFeedback={workFeedback}
                         key="engineer"
                         poles={poles}
