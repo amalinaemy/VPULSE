@@ -4,7 +4,7 @@ import { StateFilter } from "../components/StateFilter";
 import { useStateFilter } from "../services/useStateFilter";
 import { WorkFormModal } from "../components/WorkFormModal";
 import { trimmingWorkStatus } from "../services/trimmingWork";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { GeospatialAnalysis } from "../components/GeospatialAnalysis";
 import type { Pole, WorkFeedback } from "../services/api";
 import { PoleDetailsModal } from "./EngineerPage";
@@ -22,7 +22,7 @@ interface FieldTeamPageProps {
 
 type TrimmingStatus = "Completed" | "Not Started" | "In Progress" | "Pending";
 type TrimmingFilter = "All" | TrimmingStatus;
-type RiskFilter = "All" | "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+const riskOptions = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];
 const pageSize = 10;
 
 export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error, onWorkFormSaved, feedbackLoading, feedbackError, onRefreshFeedback }: FieldTeamPageProps) {
@@ -32,8 +32,10 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
     const feedbackUnavailable = feedbackLoading || !!feedbackError;
     const [formPole, setFormPole] = useState<Pole | null>(null);
     const [trimmingFilter, setTrimmingFilter] = useState<TrimmingFilter>("All");
-    const [riskFilter, setRiskFilter] = useState<RiskFilter>("All");
-    const [substationFilter, setSubstationFilter] = useState("");
+    const [riskFilter, setRiskFilter] = useState<string[] | null>(null);
+    const [substationFilter, setSubstationFilter] = useState<string[] | null>(null);
+    const [landCoverFilter, setLandCoverFilter] = useState<string[] | null>(null);
+    const landCovers = useMemo(() => [...new Set(poles.map(workPackLandCover))].sort((a, b) => a.localeCompare(b)), [poles]);
     const substations = useMemo(() => [...new Set(poles.map(workPackSubstation))].sort((a, b) => a.localeCompare(b)), [poles]);
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
@@ -71,21 +73,22 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
         && trimmingWorkStatus(trimmingWorkByPole.get(normalizePoleId(pole.poleId))) === "Pending"
     ), [priorityPoles, trimmingWorkByPole]);
     const filteredPoles = useMemo(() => priorityPoles.filter((pole) => {
-        if (substationFilter && workPackSubstation(pole) !== substationFilter) return false;
+        if (substationFilter !== null && !substationFilter.includes(workPackSubstation(pole))) return false;
+        if (landCoverFilter !== null && !landCoverFilter.includes(workPackLandCover(pole))) return false;
         const query = search.trim().toLowerCase();
         if (query && ![pole.poleId, pole.feederId, pole.streetName, pole.substation]
             .some((value) => (value ?? "").toLowerCase().includes(query))) return false;
-        if (riskFilter !== "All" && riskLevel(pole) !== riskFilter) return false;
+        if (riskFilter !== null && !riskFilter.includes(riskLevel(pole))) return false;
         if (feedbackUnavailable || trimmingFilter === "All") return true;
         return trimmingWorkStatus(trimmingWorkByPole.get(normalizePoleId(pole.poleId))) === trimmingFilter;
-    }), [priorityPoles, trimmingWorkByPole, trimmingFilter, riskFilter, substationFilter, search, feedbackUnavailable]);
+    }), [priorityPoles, trimmingWorkByPole, trimmingFilter, riskFilter, substationFilter, landCoverFilter, search, feedbackUnavailable]);
     const priorityRankByPole = useMemo(() => new Map(priorityPoles.map((pole, index) => [pole, index + 1])), [priorityPoles]);
     const totalPages = Math.max(1, Math.ceil(filteredPoles.length / pageSize));
     const pagePoles = filteredPoles.slice((page - 1) * pageSize, page * pageSize);
 
-    const hasActiveFilters = substationFilter !== "" || search.trim() !== "" || riskFilter !== "All" || trimmingFilter !== "All";
+    const hasActiveFilters = substationFilter !== null || landCoverFilter !== null || search.trim() !== "" || riskFilter !== null || trimmingFilter !== "All";
 
-    useEffect(() => setPage(1), [riskFilter, trimmingFilter, substationFilter, search]);
+    useEffect(() => setPage(1), [riskFilter, trimmingFilter, substationFilter, landCoverFilter, search]);
     useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
     useEffect(() => {
         if (!targetPoleId) return;
@@ -97,9 +100,10 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
     }, [targetPoleId, pagePoles]);
 
     function resetFilters() {
-        setSubstationFilter("");
+        setSubstationFilter(null);
+        setLandCoverFilter(null);
         setSearch("");
-        setRiskFilter("All");
+        setRiskFilter(null);
         setTrimmingFilter("All");
         setPage(1);
     }
@@ -107,9 +111,10 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
     function openPendingPole(pole: Pole) {
         const poleId = pole.poleId?.trim();
         if (!poleId) return;
-        setSubstationFilter("");
+        setSubstationFilter(null);
+        setLandCoverFilter(null);
         setSearch(poleId);
-        setRiskFilter("CRITICAL");
+        setRiskFilter(["CRITICAL"]);
         setTrimmingFilter("Pending");
         setPage(1);
         setTargetPoleId(poleId);
@@ -202,17 +207,9 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
                         <label className="field-pole-search">Search poles
                             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Pole ID, Feeder ID, Street Name, or Substation" type="search" />
                         </label>
-                        <label>Risk category
-                            <select value={riskFilter} onChange={(event) => setRiskFilter(event.target.value as RiskFilter)}>
-                                <option value="All">All categories</option><option value="CRITICAL">Critical</option><option value="HIGH">High</option><option value="MEDIUM">Medium</option><option value="LOW">Low</option>
-                            </select>
-                        </label>
-                        <label>Substation
-                            <select value={substationFilter} onChange={event => setSubstationFilter(event.target.value)}>
-                                <option value="">All substations</option>
-                                {substations.map(name => <option key={name} value={name}>{name}</option>)}
-                            </select>
-                        </label>
+                        <WorkPackMultiFilter label="Risk category" allLabel="All categories" options={riskOptions} selected={riskFilter} onChange={setRiskFilter} />
+                        <WorkPackMultiFilter label="Substation" allLabel="All substations" options={substations} selected={substationFilter} onChange={setSubstationFilter} />
+                        <WorkPackMultiFilter label="Land cover type" allLabel="All land covers" options={landCovers} selected={landCoverFilter} onChange={setLandCoverFilter} />
                         <label>Trimming work
                             <select disabled={feedbackUnavailable} value={trimmingFilter} onChange={(event) => setTrimmingFilter(event.target.value as TrimmingFilter)}>
                                 <option value="All">All</option>
@@ -283,3 +280,42 @@ function riskLevel(pole: Pole) {
 function openGoogleMaps(pole: Pole) { window.open(`https://www.google.com/maps?q=${pole.latitude},${pole.longitude}`, "_blank", "noopener,noreferrer"); }
 
 function workPackSubstation(pole: Pole) { return pole.substation?.trim() || pole.feederId?.trim() || "Unassigned feeder"; }
+
+function workPackLandCover(pole: Pole) { return pole.landCoverType?.trim() || "Not recorded"; }
+
+function WorkPackMultiFilter({ label, allLabel, options, selected, onChange }: {
+    label: string; allLabel: string; options: string[]; selected: string[] | null;
+    onChange: (value: string[] | null) => void;
+}) {
+    const ref = useRef<HTMLDetailsElement>(null);
+    const all = selected === null;
+    useEffect(() => {
+        const close = (event: PointerEvent) => {
+            if (ref.current && !ref.current.contains(event.target as Node)) ref.current.open = false;
+        };
+        document.addEventListener("pointerdown", close);
+        return () => document.removeEventListener("pointerdown", close);
+    }, []);
+    return <div className="work-pack-multi-filter">
+        <span>{label}</span>
+        <details ref={ref} onBlur={event => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) event.currentTarget.open = false;
+        }} onKeyDown={event => {
+            if (event.key === "Escape") { event.currentTarget.open = false; event.currentTarget.querySelector("summary")?.focus(); }
+        }}>
+            <summary aria-label={`${label}: ${all ? allLabel : selected.length + " selected"}`}>
+                {all ? allLabel : selected.length === 0 ? "None selected" : selected.length === 1 ? selected[0] : `${selected.length} selected`}
+            </summary>
+            <div className="work-pack-multi-options" role="group" aria-label={label}>
+                <label><input type="checkbox" checked={all} onChange={() => onChange(all ? [] : null)} />{allLabel}</label>
+                {options.map(option => <label key={option}>
+                    <input type="checkbox" checked={all || selected.includes(option)} onChange={event => {
+                        const current = selected ?? options;
+                        const next = event.target.checked ? [...current, option] : current.filter(value => value !== option);
+                        onChange(options.every(value => next.includes(value)) ? null : next);
+                    }} />{option}
+                </label>)}
+            </div>
+        </details>
+    </div>;
+}
