@@ -161,10 +161,10 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
         {feedbackError && <p className="field-feedback-notice" role="alert">Unable to load trimming data: {feedbackError} Use Refresh trimming data to retry. You can still open a work form below.</p>}
         {isLoading ?
         <p className="loading">Loading field work pack…</p>
-        : error ? <p className="loading">{error}</p> : priorityPoles.length === 0 ?
-        <p className="loading">No Critical or High poles match the selected state and line type filters.</p> : <>
+        : error ? <p className="loading">{error}</p> : poles.length === 0 ?
+        <p className="loading">No poles match the selected state and line type filters.</p> : <>
             <div className="field-team-map">
-                <GeospatialAnalysis poles={priorityPoles} onSelectPole={openPendingPole} onViewDetails={setSelectedPole} />
+                <GeospatialAnalysis poles={poles} onSelectPole={openPendingPole} onViewDetails={setSelectedPole} />
                 <article className="feeder-ranking-card critical-pending-card">
                     <div className="critical-pending-heading">
                         <div><p>Pending work analysis</p><h3>Critical Pending Work</h3></div>

@@ -3467,3 +3467,9 @@ button {
     color: #183664;
     font-size: .85rem;
 }
+
+/* Keep long substation names within the map toolbar. */
+.map-card-tools { min-width: 0; max-width: 100%; }
+.map-card-tools label { min-width: 0; }
+.map-card-tools select { width: 100%; min-width: 0; text-overflow: ellipsis; }
+.map-card-heading { flex-wrap: wrap; }
