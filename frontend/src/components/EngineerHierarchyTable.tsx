@@ -1,3 +1,4 @@
+import { poleTrimmingStatus } from "../services/trimmingWork";
 import { useEffect, useMemo, useState } from "react";
 import type { Pole, WorkFeedback } from "../services/api";
 import { PoleDetailsModal } from "../pages/EngineerPage";
@@ -116,11 +117,14 @@ export function EngineerHierarchyTable({ workFeedback, poles, isLoading, error, 
                 "Risk Category": riskLevel(pole),
                 "Land Cover Type": pole.landCoverType ?? "Unknown",
                 "Recommended Action": pole.action ?? "",
+                "Trimming Work Status": poleTrimmingStatus(pole.poleId, workFeedback),
+                "Modified On": pole.modifiedOn && Number.isFinite(Date.parse(pole.modifiedOn))
+                    ? new Date(pole.modifiedOn).toLocaleString() : "—",
             }));
         const hierarchySheet = XLSX.utils.json_to_sheet(hierarchyRows);
         hierarchySheet["!cols"] = [{ wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 20 }, { wch: 20 }, { wch: 28 }, { wch: 16 }, { wch: 16 }, { wch: 12 }, { wch: 20 }];
         const candidateSheet = XLSX.utils.json_to_sheet(candidateRows);
-        candidateSheet["!cols"] = [{ wch: 7 }, { wch: 20 }, { wch: 18 }, { wch: 28 }, { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 16 }, { wch: 17 }, { wch: 24 }, { wch: 42 }];
+        candidateSheet["!cols"] = [{ wch: 7 }, { wch: 20 }, { wch: 18 }, { wch: 28 }, { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 16 }, { wch: 17 }, { wch: 24 }, { wch: 42 }, { wch: 24 }, { wch: 28 }];
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, hierarchySheet, "Hierarchy Details");
         XLSX.utils.book_append_sheet(workbook, candidateSheet, "Candidate List");
