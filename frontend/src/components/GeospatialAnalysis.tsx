@@ -177,7 +177,6 @@ function PoleDetails({ pole, onClose, onViewDetails, onOpenForm }: { pole: Pole;
         <p>Risk Score: <b>{pole.finalAiRiskScore ?? "Not assessed"} ({category[0]}{category.slice(1).toLowerCase()})</b></p>
         <p>Land cover: <b>{pole.landCoverType ?? "Not recorded"}</b></p>
         <p>Coordinates: {pole.latitude ?? "—"}, {pole.longitude ?? "—"}</p>
-        <p>Source: Dataverse AI output</p>
         <div className="pole-detail-actions">{onViewDetails ?
             <button className="view-pole-details" type="button" onClick={() => onViewDetails(pole)}>View Details</button>
              : <a className="view-pole-details" href="#pole-risk-records">View Details</a>}
