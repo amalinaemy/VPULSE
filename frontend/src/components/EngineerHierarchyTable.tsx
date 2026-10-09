@@ -119,7 +119,12 @@ export function EngineerHierarchyTable({ workFeedback, poles, isLoading, error, 
                 "Recommended Action": pole.action ?? "",
                 "Trimming Work Status": poleTrimmingStatus(pole.poleId, workFeedback),
                 "Modified On": pole.modifiedOn && Number.isFinite(Date.parse(pole.modifiedOn))
-                    ? new Date(pole.modifiedOn).toLocaleString() : "—",
+                    ? new Date(pole.modifiedOn).toLocaleDateString("en-GB", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        timeZone: "Asia/Kuala_Lumpur",
+                    }) : "—",
             }));
         const hierarchySheet = XLSX.utils.json_to_sheet(hierarchyRows);
         hierarchySheet["!cols"] = [{ wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 20 }, { wch: 20 }, { wch: 28 }, { wch: 16 }, { wch: 16 }, { wch: 12 }, { wch: 20 }];
