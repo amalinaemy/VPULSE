@@ -111,11 +111,7 @@ function App() {
         let active = true;
         setFeedbackLoading(true);
         setFeedbackError(null);
-        const feedbackPoles = activeView === "field" ? poles.filter(pole => {
-            const category = pole.finalAiRiskCategory?.trim().toUpperCase();
-            if (category && ["CRITICAL", "HIGH", "MEDIUM", "LOW"].includes(category)) return ["CRITICAL", "HIGH"].includes(category);
-            return Number(pole.finalAiRiskScore ?? -1) >= 60;
-        }) : poles;
+        const feedbackPoles = poles;
         getWorkFeedback(feedbackPoles.flatMap(pole => pole.poleId ? [pole.poleId] : []), controller.signal)
             .then(feedback => {
                 if (active) setWorkFeedback(feedback);

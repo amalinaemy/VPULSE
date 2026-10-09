@@ -3484,3 +3484,6 @@ button {
 .map-risk-options input { width: 17px; height: 17px; margin: 0; accent-color: #087e98; }
 
 .pole-detail-actions { flex-wrap: wrap; }
+
+.field-task-statuses .risk-medium { background: #fff3cd; color: #765500; }
+.field-task-statuses .risk-low { background: #d9f5e6; color: #14633c; }

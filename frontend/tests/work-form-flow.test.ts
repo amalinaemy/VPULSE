@@ -146,10 +146,14 @@ test('field work pack and form buttons remain available while feedback loads or 
   const {FieldTeamPage}=await import('data:text/javascript;base64,'+Buffer.from(compiled).toString('base64'));
   for(const state of [{feedbackLoading:true,feedbackError:null},{feedbackLoading:false,feedbackError:'HTTP 500'}]){
     const html=renderToStaticMarkup(React.createElement(FieldTeamPage,{
-      poles:[{poleId:'P1',finalAiRiskCategory:'HIGH',finalAiRiskScore:70}],workFeedback:[],isLoading:false,error:null,
+      poles:[{poleId:'P1',finalAiRiskCategory:'HIGH',finalAiRiskScore:70},{poleId:'MEDIUM_TEST',finalAiRiskCategory:'MEDIUM',finalAiRiskScore:45,substation:'Station M'},{poleId:'LOW_TEST',finalAiRiskCategory:'LOW',finalAiRiskScore:20,substation:'Station L'}],workFeedback:[],isLoading:false,error:null,
       onWorkFormSaved:async()=>{},onRefreshFeedback:()=>{},...state,
     }));
     assert.match(html,/>Form<\/button>/);
+    assert.match(html,/MEDIUM_TEST/);
+    assert.match(html,/LOW_TEST/);
+    assert.match(html,/All substations/);
+    assert.match(html,/Station M/);
     assert.match(html,/Trimming work: Unavailable/);
     assert.doesNotMatch(html,/Trimming work: Pending/);
   }
