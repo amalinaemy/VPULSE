@@ -14,7 +14,12 @@ export function GeospatialAnalysis({ poles, showFeederRanking = true, onSelectPo
 
     useEffect(() => {
         const syncFullscreen = () => {
-            setIsFullscreen(document.fullscreenElement === cardRef.current);
+            const nativeFullscreen = document.fullscreenElement === cardRef.current;
+            // A system photo picker may end native fullscreen. Keep the existing
+            // viewport-filling map while its work dialog is open; do not remount
+            // the dialog or request fullscreen again without a user gesture.
+            const formOpen = !!cardRef.current?.querySelector(".work-form-dialog[open]");
+            setIsFullscreen(current => nativeFullscreen || (current && formOpen));
         };
         document.addEventListener("fullscreenchange", syncFullscreen);
         return () => document.removeEventListener("fullscreenchange", syncFullscreen);
@@ -25,7 +30,8 @@ export function GeospatialAnalysis({ poles, showFeederRanking = true, onSelectPo
         const previousOverflow = document.body.style.overflow;
         document.body.style.overflow = "hidden";
         const onKeyDown = (event: KeyboardEvent) => {
-            if (event.key === "Escape" && !document.fullscreenElement) {
+            if (event.key === "Escape" && !document.fullscreenElement
+                && !cardRef.current?.querySelector(".work-form-dialog[open]")) {
                 setIsFullscreen(false);
                 fullscreenButtonRef.current?.focus();
             }
