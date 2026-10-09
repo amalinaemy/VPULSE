@@ -11,6 +11,7 @@ import { OverviewPage } from "./pages/OverviewPage";
 import { WorkForm } from "./pages/WorkForm";
 
 import {
+    subscribeWorkFeedback,
     getPoles,
     getWorkFeedback,
     invalidateWorkFeedback,
@@ -58,6 +59,11 @@ function App() {
     const [feedbackError, setFeedbackError] = useState<string | null>(null);
     const [workFeedback, setWorkFeedback] =
         useState<WorkFeedback[]>([]);
+
+    useEffect(() => subscribeWorkFeedback(feedback => {
+        const id = feedback.poleId?.trim().toLowerCase();
+        setWorkFeedback(current => [...current.filter(item => item.poleId?.trim().toLowerCase() !== id), feedback]);
+    }), []);
 
     /*
     |--------------------------------------------------------------------------
@@ -235,7 +241,7 @@ function App() {
                         workFeedback={workFeedback}
                         isLoading={isLoadingPoles}
                         error={polesError}
-                        onWorkFormSaved={async () => { invalidateWorkFeedback(); setFeedbackRefresh(value => value + 1); }}
+                        onWorkFormSaved={async () => { /* saveWorkForm publishes the saved pole status immediately. */ }}
                     />
                 );
 

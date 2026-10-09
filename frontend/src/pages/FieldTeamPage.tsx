@@ -229,7 +229,7 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
                     return <article className="field-task" id={fieldTaskId(pole.poleId)} tabIndex={-1} key={`${pole.poleId ?? "pole"}-${index}`}>
                         <div className="field-task-rank" aria-label={`Priority rank ${priorityRankByPole.get(pole)}`}>{priorityRankByPole.get(pole)}</div>
                         <div className="field-task-info"><h4>{pole.poleId ?? "Unnamed pole"}</h4><p>{pole.streetName ?? "Street not recorded"}</p><small>{pole.action ?? "Field inspection required"}</small>
-                            <span className={`trimming-status ${trimmingStatusClass(trimmingWork)}`}>Trimming work: {feedbackUnavailable ? "Unavailable" : trimmingWork}</span>
+                            <span className={`trimming-status ${trimmingStatusClass(trimmingWork)}`}>Trimming work: {feedbackUnavailable && !trimmingWorkByPole.has(normalizePoleId(pole.poleId)) ? "Unavailable" : trimmingWork}</span>
                         </div>
                         <div className="field-task-statuses">
                             <strong className={`risk-${category.toLowerCase()}`}>{category} {pole.finalAiRiskScore ?? "—"}</strong>

@@ -11,8 +11,8 @@ export function trimmingWorkStatus(value: string | undefined): TrimmingStatus {
     return "Pending";
 }
 
-export function poleTrimmingStatus(poleId: string | null, feedback: WorkFeedback[]): TrimmingStatus {
+export function poleTrimmingStatus(poleId: string | null, feedback: WorkFeedback[]): TrimmingStatus | "Unavailable" {
     const id = poleId?.trim().toLowerCase();
-    const match = id ? feedback.find((item) => item.poleId?.trim().toLowerCase() === id && item.trimmingWork) : undefined;
-    return trimmingWorkStatus(match?.trimmingWork ?? undefined);
+    const match = id ? feedback.find((item) => item.poleId?.trim().toLowerCase() === id) : undefined;
+    return match ? trimmingWorkStatus(match.trimmingWork ?? undefined) : "Unavailable";
 }

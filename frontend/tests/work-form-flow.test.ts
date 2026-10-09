@@ -297,3 +297,33 @@ test('form and feedback routes return actionable errors on an upstream timeout',
     else process.env.POWER_AUTOMATE_GET_WORK_FORM_URL=oldUrl;
   }
 });
+
+
+test('form status publishes after load/save and an older feedback request cannot overwrite it', async () => {
+  const source = await readFile(new URL('../src/services/api.ts', import.meta.url), 'utf8');
+  const adapter = new URL('../src/services/workFormResponse.ts', import.meta.url).href;
+  const compiled = ts.transpileModule(source.replace('"./workFormResponse"', JSON.stringify(adapter)).replaceAll('import.meta.env', '({})'), {compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2023}}).outputText;
+  const api = await import('data:text/javascript;base64,' + Buffer.from(compiled + '\n//status-sync').toString('base64'));
+  const oldFetch = globalThis.fetch;
+  const events:any[] = [];
+  const unsubscribe = api.subscribeWorkFeedback((value:any) => events.push(value));
+  try {
+    globalThis.fetch = async () => Response.json({...row, crf11_trimmingwork:2,
+      'crf11_trimmingwork@OData.Community.Display.V1.FormattedValue':'Not Started'});
+    await api.getWorkForm('P1');
+    assert.equal(events.at(-1).trimmingWork, 'Not Started');
+    api.invalidateWorkFeedback('P1');
+    let finish!: (value: Response) => void;
+    globalThis.fetch = async (_url, options) => options?.method === 'PUT'
+      ? Response.json({success:true}) : new Promise<Response>(resolve => { finish = resolve; });
+    const pending = api.getWorkFeedback(['P1']);
+    await api.saveWorkForm('P1','id',null,{crf11_trimmingwork:0});
+    assert.equal(events.at(-1).trimmingWork,'Completed');
+    finish(Response.json([{poleId:'P1',trimmingWork:'Not Started',modifiedOn:null}]));
+    assert.equal((await pending)[0].trimmingWork,'Completed');
+    const count=events.length;
+    globalThis.fetch=async()=>Response.json({message:'Save rejected'},{status:500});
+    await assert.rejects(api.saveWorkForm('P1','id',null,{crf11_trimmingwork:2}),/Save rejected/);
+    assert.equal(events.length,count);
+  } finally { unsubscribe(); globalThis.fetch=oldFetch; }
+});

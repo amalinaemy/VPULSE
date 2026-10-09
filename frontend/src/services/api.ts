@@ -1,4 +1,4 @@
-import { normalizeWorkForm } from "./workFormResponse";
+import { normalizeWorkForm, workFormChoices } from "./workFormResponse";
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5042";
 
@@ -177,8 +177,20 @@ export interface WorkFeedback {
 }
 
 const feedbackCache = new Map<string, { expires: number; data: WorkFeedback[] }>();
+const feedbackListeners = new Set<(feedback: WorkFeedback) => void>();
+const feedbackKey = (id: string) => id.trim().toLowerCase();
+export function subscribeWorkFeedback(listener: (feedback: WorkFeedback) => void) {
+  feedbackListeners.add(listener);
+  return () => { feedbackListeners.delete(listener); };
+}
+function publishWorkFeedback(poleId: string, trimmingWork: string | null) {
+  const feedback = { poleId, trimmingWork, modifiedOn: null };
+  feedbackCache.set(feedbackKey(poleId), { expires: Date.now() + 300000, data: [feedback] });
+  feedbackListeners.forEach(listener => listener(feedback));
+}
+
 export function invalidateWorkFeedback(poleId?: string) {
-  if (poleId) feedbackCache.delete(poleId.trim());
+  if (poleId) feedbackCache.delete(feedbackKey(poleId));
   else feedbackCache.clear();
 }
 export async function getWorkFeedback(poleIds: string[], signal?: AbortSignal): Promise<WorkFeedback[]> {
@@ -199,7 +211,7 @@ export async function getWorkFeedback(poleIds: string[], signal?: AbortSignal): 
       signal?.throwIfAborted();
       const index = next++;
       const id = ids[index];
-      const cached = feedbackCache.get(id);
+      const cached = feedbackCache.get(feedbackKey(id));
       if (cached && cached.expires > Date.now()) { result[index] = cached.data; continue; }
       try {
         let response = await fetchFeedback(id);
@@ -215,7 +227,10 @@ export async function getWorkFeedback(poleIds: string[], signal?: AbortSignal): 
         if (response.status === 504) serviceTimedOut = true;
         const data = await readApiResponse(response);
         if (!Array.isArray(data)) throw new Error('Invalid trimming data response.');
-        feedbackCache.set(id, { expires: Date.now() + 300000, data });
+        // A form may have been saved while this request was in flight.
+        const newer = feedbackCache.get(feedbackKey(id));
+        if (newer && newer !== cached) { result[index] = newer.data; continue; }
+        feedbackCache.set(feedbackKey(id), { expires: Date.now() + 300000, data });
         result[index] = data;
       } catch (error) {
         signal?.throwIfAborted();
@@ -231,7 +246,7 @@ export async function getWorkFeedback(poleIds: string[], signal?: AbortSignal): 
   if (connectionFailed) throw new Error("Could not connect to the work-record service. Background requests have stopped. Check your connection, then use Refresh to retry. Successful requests are retained.");
   if (serviceTimedOut) throw new Error("The work-record service timed out. Background requests have stopped. Successful results are retained; use Refresh to retry after the service recovers. You can still open an individual work form.");
   if (failures.length) throw new Error(`${failures.length} pole(s) could not load. ${failures[0]} Successful requests are retained; Refresh retries missing data.`);
-  return result.flat();
+  return ids.flatMap((id, index) => feedbackCache.get(feedbackKey(id))?.data ?? result[index] ?? []);
 }
 
 export type WorkFormValue = string | number | number[] | null;
@@ -241,8 +256,17 @@ export interface WorkFormField {
 }
 export interface WorkFormRecord { found?: boolean; id: string | null; version: string | null; fields: WorkFormField[] }
 export async function getWorkForm(poleId: string): Promise<WorkFormRecord> {
-  const data = await apiGet(`/api/work-form?poleId=${encodeURIComponent(poleId)}`, "");
-  return normalizeWorkForm(data, poleId);
+  const before = feedbackCache.get(feedbackKey(poleId));
+  const data = await readApiResponse(await fetch(`/api/work-form?poleId=${encodeURIComponent(poleId)}`, { cache: "no-store" }));
+  const form = normalizeWorkForm(data, poleId);
+  const field = form.fields.find(field => field.name === "crf11_trimmingwork");
+  if (feedbackCache.get(feedbackKey(poleId)) === before) {
+    const label = field?.options?.find(option => option.value === field.value)?.label
+      ?? workFormChoices.crf11_trimmingwork.find(option => option.value === field?.value)?.label
+      ?? (typeof field?.value === "string" ? field.value : null);
+    publishWorkFeedback(poleId, label);
+  }
+  return form;
 }
 export async function saveWorkForm(poleId: string, id: string | null, version: string | null, values: Record<string, WorkFormValue>): Promise<void> {
   const body = JSON.stringify({ id, version, values });
@@ -253,5 +277,9 @@ export async function saveWorkForm(poleId: string, id: string | null, version: s
   if (!response.ok) {
     const error = await response.json().catch(() => null);
     throw new Error(error?.message ?? error?.detail ?? "Unable to save the work form.");
+  }
+  if (Object.hasOwn(values, "crf11_trimmingwork")) {
+    const status = workFormChoices.crf11_trimmingwork.find(option => option.value === values.crf11_trimmingwork)?.label;
+    publishWorkFeedback(poleId, status ?? null);
   }
 }

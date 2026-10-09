@@ -4,8 +4,8 @@ import { matchesLineType, type LineTypeFilterValue } from "../services/lineType"
 import { StateFilter } from "../components/StateFilter";
 import { useStateFilter } from "../services/useStateFilter";
 import { poleTrimmingStatus } from "../services/trimmingWork";
-import { useMemo, useState } from "react";
-import type { Pole, WorkFeedback } from "../services/api";
+import { useEffect, useMemo, useState } from "react";
+import { getWorkForm, type Pole, type WorkFeedback } from "../services/api";
 import { GeospatialAnalysis } from "../components/GeospatialAnalysis";
 import { EngineerHierarchyTable } from "../components/EngineerHierarchyTable";
 
@@ -49,6 +49,18 @@ export function EngineerPage({ poles: allPoles, workFeedback, isLoading, error }
 }
 
 export function PoleDetailsModal({ pole, workFeedback, onClose }: { pole: Pole; workFeedback: WorkFeedback[]; onClose: () => void }) {
+    const [statusLoading, setStatusLoading] = useState(true);
+    const [statusError, setStatusError] = useState(false);
+    useEffect(() => {
+        let active = true;
+        setStatusLoading(true);
+        setStatusError(false);
+        if (!pole.poleId) { setStatusLoading(false); setStatusError(true); return; }
+        getWorkForm(pole.poleId)
+            .catch(() => { if (active) setStatusError(true); })
+            .finally(() => { if (active) setStatusLoading(false); });
+        return () => { active = false; };
+    }, [pole.poleId]);
     const category = riskLevel(pole);
     const openMap = () => window.open(`https://www.google.com/maps?q=${pole.latitude},${pole.longitude}`, "_blank", "noopener,noreferrer");
     return <MapModalPortal><div className="pole-modal-backdrop" role="presentation" onMouseDown={onClose}>
@@ -74,7 +86,7 @@ export function PoleDetailsModal({ pole, workFeedback, onClose }: { pole: Pole; 
                 <Detail label="Operational category" value={pole.operationalRiskCategory} />
                 <Detail label="AI risk group" value={pole.aiRiskGroup} />
                 <Detail label="AI risk score" value={pole.aiRiskScore} />
-                <Detail label="Trimming work status" value={poleTrimmingStatus(pole.poleId, workFeedback)} />
+                <Detail label="Trimming work status" value={statusLoading ? "Loading…" : statusError ? "Unavailable — reopen details to retry" : poleTrimmingStatus(pole.poleId, workFeedback)} />
                 <Detail label="AI validation" value={pole.aiValidation} />
                 <Detail label="Modified on" value={formatDate(pole.modifiedOn)} />
             </dl>
