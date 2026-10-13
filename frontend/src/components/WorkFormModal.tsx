@@ -1,3 +1,4 @@
+import { requiredWorkFields, validateWorkForm, workDateRange } from "../services/workFormValidation";
 import { MapModalPortal } from "./MapModalPortal";
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import {
@@ -23,6 +24,7 @@ interface WorkFormModalProps {
 }
 
 interface FormFieldProps {
+    error?: string;
     field: WorkFormField;
     value: WorkFormValue;
     onChange: (value: WorkFormValue) => void;
@@ -34,6 +36,7 @@ export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
     const [loadAttempt, setLoadAttempt] = useState(0);
     const [record, setRecord] = useState<WorkFormRecord | null>(null);
     const [values, setValues] = useState<Record<string, WorkFormValue>>({});
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [error, setError] = useState("");
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
@@ -58,6 +61,10 @@ export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
                 if (!form.fields.length) {
                     throw new Error("The Dataverse form fields could not be identified.");
                 }
+                form.fields = form.fields.map(field => ({ ...field,
+                    label: requiredWorkFields[field.name] ?? field.label,
+                    required: field.name in requiredWorkFields || field.required,
+                }));
                 setRecord(form);
                 setValues(initialWorkFormValues(form, pole));
             })
@@ -69,6 +76,13 @@ export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
 
     function updateField(name: string, value: WorkFormValue) {
         setValues(current => ({ ...current, [name]: value }));
+        setFieldErrors(current => {
+            if (!(name in current)) return current;
+            const next = { ...current };
+            const message = validateWorkForm({ ...values, [name]: value })[name];
+            if (message) next[name] = message; else delete next[name];
+            return next;
+        });
     }
 
     function readImage(name: string, event: ChangeEvent<HTMLInputElement>) {
@@ -92,6 +106,12 @@ export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
     async function submit(event: FormEvent) {
         event.preventDefault();
         if (!record || saving || readingImages > 0) return;
+        const validation = validateWorkForm(values);
+        setFieldErrors(validation);
+        if (Object.keys(validation).length) {
+            setError("Please correct the highlighted fields before saving.");
+            return;
+        }
         setSaving(true);
         setError("");
 
@@ -122,7 +142,7 @@ export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
                 if (!saving) onClose();
             }}
         >
-            <form onSubmit={submit}>
+            <form onSubmit={submit} noValidate>
                 <header>
                     <div>
                         <h2 id="work-form-title">{record?.id ? "Update Work Form" : "Work Form"}</h2>
@@ -150,10 +170,12 @@ export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
                             <span>{field.required && !isLockedField(field) && <b aria-hidden="true">* </b>}{field.label}</span>
                             <FormField
                                 field={field}
+                                error={fieldErrors[field.name]}
                                 value={values[field.name]}
                                 onChange={value => updateField(field.name, value)}
                                 onImageChange={event => readImage(field.name, event)}
                             />
+                            {fieldErrors[field.name] && <small id={`${field.name}-error`} className="work-form-error" role="alert">{fieldErrors[field.name]}</small>}
                         </label>
                     ))}
                 </fieldset>
@@ -171,14 +193,16 @@ export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
     );
 }
 
-function FormField({ field, value, onChange, onImageChange }: FormFieldProps) {
+function FormField({ field, value, onChange, onImageChange, error }: FormFieldProps) {
     const locked = isLockedField(field);
-    const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const { today, yesterday } = workDateRange();
+    const dateRestricted = ["cr1da_inspectiondate", "crf11_trimmingdate"].includes(field.name);
 
     if (field.type === "choice" || field.type === "multiselect") {
         return (
             <select
+                aria-invalid={!!error}
+                aria-describedby={error ? `${field.name}-error` : undefined}
                 disabled={locked}
                 required={field.required && !locked}
                 multiple={field.type === "multiselect"}
@@ -228,11 +252,14 @@ function FormField({ field, value, onChange, onImageChange }: FormFieldProps) {
 
     return (
         <input
+            aria-invalid={!!error}
+            aria-describedby={error ? `${field.name}-error` : undefined}
             readOnly={locked}
             required={field.required && !locked}
             maxLength={field.maxLength ?? undefined}
             type={field.type === "number" ? "number" : field.type === "date" ? "date" : "text"}
-            max={field.name === "cr1da_inspectiondate" ? today : undefined}
+            min={dateRestricted ? yesterday : undefined}
+            max={dateRestricted ? today : undefined}
             step="any"
             value={String(value ?? "")}
             onChange={event => onChange(

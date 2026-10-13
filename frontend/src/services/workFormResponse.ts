@@ -37,7 +37,7 @@ const fieldDefinitions = [
   ['cr1da_gambaraireference', 'Longitude', 'text'],
   ['cr1da_inspectionstatus', 'Inspection Status', 'choice'],
   ['cr1da_risklevel', 'Risk Level', 'choice'],
-  ['cr1da_namapegawaicontractors', 'Nama Pegawai / Contractors', 'text'],
+  ['cr1da_namapegawaicontractors', 'Nama Pegawai (Rondaan)', 'text'],
   ['cr1da_inspectiondate', 'Inspection Date', 'date'],
   ['cr1da_aiconfirmedenroachment', 'AI Confirmed Enroachment', 'choice'],
   ['cr1da_gambarsemasaditapak', 'Gambar Semasa di Tapak', 'image'],

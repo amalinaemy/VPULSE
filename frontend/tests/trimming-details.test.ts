@@ -1,3 +1,4 @@
+import { workDateRange } from "../src/services/workFormValidation.ts";
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeWorkForm } from '../src/services/workFormResponse.ts';
@@ -34,9 +35,9 @@ test('save endpoint forwards both new fields to the flow, including cleared valu
       if(String(url).includes('GET_POLES'))return Response.json([{cr1da_poleidentifier:'TEST'}]);
       submitted=JSON.parse(String(options?.body));return Response.json({ok:true});
     };
-    for(const [name,date] of [['Officer','2026-10-13'],[null,null]]) {
+    for(const [name,date] of [['Officer',workDateRange().today],[null,null]]) {
       const res:any={code:0,status(code:number){this.code=code;return this;},json(){return this;}};
-      await handler({method:'PUT',query:{poleId:'TEST'},body:{values:{crf11_namapegawaicantasan:name,crf11_trimmingdate:date}}},res);
+      await handler({method:'PUT',query:{poleId:'TEST'},body:{values:{cr1da_inspectionstatus:0,cr1da_risklevel:0,cr1da_namapegawaicontractors:'Inspector',cr1da_inspectiondate:workDateRange().today,cr1da_aiconfirmedenroachment:0,cr1da_fieldtrimmingrequired:0,crf11_trimmingwork:0,crf11_namapegawaicantasan:name,crf11_trimmingdate:date}}},res);
       assert.equal(res.code,200);assert.equal(submitted.namaPegawaiCantasan,name);assert.equal(submitted.trimmingDate,date);
     }
   } finally {globalThis.fetch=original;names.forEach((name,i)=>{if(old[i]===undefined)delete process.env[name];else process.env[name]=old[i];});}

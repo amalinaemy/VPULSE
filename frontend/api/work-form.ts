@@ -1,3 +1,4 @@
+import { validateWorkForm } from "../src/services/workFormValidation.ts";
 async function saveFlowToken(): Promise<string> {
   const tenant = process.env.POWER_AUTOMATE_TENANT_ID;
   const clientId = process.env.POWER_AUTOMATE_CLIENT_ID;
@@ -229,6 +230,10 @@ export default async function handler(
       }
 
 
+      const fieldErrors = validateWorkForm(submittedValues);
+      if (Object.keys(fieldErrors).length) {
+        return res.status(400).json({ message: Object.values(fieldErrors).join(' '), fieldErrors });
+      }
       const lockedFields = new Set(['cr1da_feederpolesection', 'cr1da_feederid', 'cr1da_zone', 'cr1da_gpsautocapture', 'cr1da_gambaraireference']);
       const values: Record<string, any> = Object.fromEntries(Object.entries(submittedValues).filter(([key]) => !lockedFields.has(key.toLowerCase())));
       let images;
