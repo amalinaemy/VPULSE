@@ -1,5 +1,3 @@
-export const maxDuration = 60;
-
 const formattedSuffix = '@odata.community.display.v1.formattedvalue';
 
 function recordOf(data: unknown): Record<string, unknown> {
@@ -43,27 +41,20 @@ export default async function handler(req: any, res: any) {
   try {
     const response = await fetch(flowUrl, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ poleId }), signal: AbortSignal.timeout(55000),
+      body: JSON.stringify({ poleId }), signal: AbortSignal.timeout(25000),
     });
     if (!response.ok) {
       const failure: any = await response.json().catch(() => null);
       const code = typeof failure?.error?.code === 'string' && /^[a-zA-Z0-9_.-]{1,100}$/.test(failure.error.code) ? ` (${failure.error.code})` : '';
       return res.status(502).json({ message: `GetWorkForm returned HTTP ${response.status}${code}. Check the failed action in the flow run history.` });
     }
-    const raw = await response.text();
-    let data: unknown;
-    try { data = JSON.parse(raw); }
-    catch { return res.status(502).json({ message: `GetWorkForm returned HTTP ${response.status} with ${raw.trim() ? 'a non-JSON' : 'an empty'} response. Its Response action must return a record or {"found":false}.`, retryable: false }); }
+    const data = await response.json();
     try {
       return res.status(200).json(feedbackFromWorkForm(data, poleId));
     } catch (error) {
       return res.status(502).json({ message: error instanceof Error ? error.message : 'Invalid work feedback response.' });
     }
-  } catch (error) {
-    const timedOut = error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError');
-    return res.status(timedOut ? 504 : 502).json({
-      message: timedOut ? 'GetWorkForm exceeded the 55-second response limit. Check the duration and Response action in its latest run.' : 'The connection to GetWorkForm was interrupted. Retry the request.',
-      retryable: !timedOut,
-    });
+  } catch {
+    return res.status(502).json({ message: 'Unable to read GetWorkForm. Check the flow run history and Response action.' });
   }
 }

@@ -88,7 +88,8 @@ export function ExecutivePage({ poles, workFeedback, isLoading, error, feedbackL
                 <Metric label="Critical poles" value={riskCounts[0].count} note="Highest priority exposure" />
                 <Metric label="Work-pack groups" value={packs.size} note="Critical + High poles grouped by feeder" />
                 <Metric label="Trimming remaining" value={feedbackUnavailable ? "—" : priority.length - completed} note="Critical + High poles not completed" />
-                <Metric label="Work completed" value={feedbackUnavailable ? "—" : `${percent}%`} note={feedbackUnavailable ? "Awaiting trimming feedback" : `${completed} of ${priority.length} priority poles`} />
+                <Metric label="Work completed" value={feedbackUnavailable ? "—" : `${percent}%`}
+                note={feedbackUnavailable ? "Awaiting trimming feedback" : `${completed} of ${priority.length} priority poles`} />
             </section>
 
             <section className="executive-filters" aria-label="Executive dashboard filters">

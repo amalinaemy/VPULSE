@@ -31,7 +31,7 @@ the pole filter and `$top: 1` in GetWorkForm.
 - Set `POWER_AUTOMATE_SAVE_WORK_FORM_URL` for the existing save flow. Its
   request remains `{ "poleId": "P1", "id": null, "version": null, "values": { ... } }`.
 - `/api/work-feedback?poleId=P1` extracts trimming status from that pole's row.
-  The browser deduplicates pole IDs, runs at most four reads concurrently and
+  The browser deduplicates pole IDs, runs at most two reads concurrently and
   caches successful results for five minutes. Failed reads leave totals unavailable;
   they are not treated as pending work. Manual refresh clears the cache.
 - `/api/work-form?poleId=P1` loads the selected pole. The frontend converts the raw
@@ -78,12 +78,6 @@ server-side from the assessment flow; a missing street is sent as null. Existing
 Live save testing requires a user-approved real form submission; mocked tests
 exercise the token exchange and payload without changing Dataverse rows.
 
-
-### Production publishing
-
-Vercel production (`https://vpulse-delta.vercel.app`) deploys from `main`.
-Pushes to `master` create Preview deployments and do not update production.
-Always verify the deployment environment and the live production URL.
 
 ### Last Refresh date
 

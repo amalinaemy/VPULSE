@@ -11,7 +11,6 @@ import { OverviewPage } from "./pages/OverviewPage";
 import { WorkForm } from "./pages/WorkForm";
 
 import {
-    subscribeWorkFeedback,
     getPoles,
     getWorkFeedback,
     invalidateWorkFeedback,
@@ -59,11 +58,6 @@ function App() {
     const [feedbackError, setFeedbackError] = useState<string | null>(null);
     const [workFeedback, setWorkFeedback] =
         useState<WorkFeedback[]>([]);
-
-    useEffect(() => subscribeWorkFeedback(feedback => {
-        const id = feedback.poleId?.trim().toLowerCase();
-        setWorkFeedback(current => [...current.filter(item => item.poleId?.trim().toLowerCase() !== id), feedback]);
-    }), []);
 
     /*
     |--------------------------------------------------------------------------
@@ -117,7 +111,11 @@ function App() {
         let active = true;
         setFeedbackLoading(true);
         setFeedbackError(null);
-        const feedbackPoles = poles;
+        const feedbackPoles = activeView === "field" ? poles.filter(pole => {
+            const category = pole.finalAiRiskCategory?.trim().toUpperCase();
+            if (category && ["CRITICAL", "HIGH", "MEDIUM", "LOW"].includes(category)) return ["CRITICAL", "HIGH"].includes(category);
+            return Number(pole.finalAiRiskScore ?? -1) >= 60;
+        }) : poles;
         getWorkFeedback(feedbackPoles.flatMap(pole => pole.poleId ? [pole.poleId] : []), controller.signal)
             .then(feedback => {
                 if (active) setWorkFeedback(feedback);
@@ -176,19 +174,10 @@ function App() {
         };
     }, []);
 
-    /*
-    |--------------------------------------------------------------------------
-    | Page renderer
-    |--------------------------------------------------------------------------
-    */
+
 
     const renderActivePage = () => {
         switch (activeView) {
-            /*
-            |--------------------------------------------------------------
-            | Home
-            |--------------------------------------------------------------
-            */
 
             case "home":
                 return (
@@ -200,11 +189,7 @@ function App() {
                     />
                 );
 
-            /*
-            |--------------------------------------------------------------
-            | Engineer / Dataverse pole records
-            |--------------------------------------------------------------
-            */
+
 
             case "executive":
                 return <ExecutivePage poles={poles} workFeedback={workFeedback} isLoading={isLoadingPoles} error={polesError} feedbackLoading={feedbackLoading} feedbackError={feedbackError} />;
@@ -220,11 +205,7 @@ function App() {
                     />
                 );
 
-            /*
-            |--------------------------------------------------------------
-            | Embedded Power App
-            |--------------------------------------------------------------
-            */
+
 
             case workFormView:
                 return (
@@ -236,12 +217,12 @@ function App() {
                     <FieldTeamPage
                         feedbackLoading={feedbackLoading}
                         feedbackError={feedbackError}
-                        onRefreshFeedback={() => { if (!feedbackError) invalidateWorkFeedback(); setFeedbackRefresh(value => value + 1); }}
+                        onRefreshFeedback={() => { invalidateWorkFeedback(); setFeedbackRefresh(value => value + 1); }}
                         poles={poles}
                         workFeedback={workFeedback}
                         isLoading={isLoadingPoles}
                         error={polesError}
-                        onWorkFormSaved={async () => { /* saveWorkForm publishes the saved pole status immediately. */ }}
+                        onWorkFormSaved={async () => { invalidateWorkFeedback(); setFeedbackRefresh(value => value + 1); }}
                     />
                 );
 

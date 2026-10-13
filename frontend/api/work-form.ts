@@ -101,7 +101,6 @@ export default async function handler(
           flowUrl,
           {
             method: "POST",
-            signal: AbortSignal.timeout(55000),
 
             headers: {
               "Content-Type":
@@ -146,12 +145,10 @@ export default async function handler(
 
     } catch (error) {
 
-      const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
-      if (timedOut) return res.status(504).json({
-        message: "The work-record service took too long to respond. Please retry loading the form. If this continues, check the GetWorkForm flow run in Power Automate.",
-        retryable: false,
-      });
-      console.error("Get Work Form API connection failed.");
+      console.error(
+        "Get Work Form API error:",
+        error
+      );
 
 
       return res.status(500).json({

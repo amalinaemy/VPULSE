@@ -1,48 +1,35 @@
 import { LineTypeFilter } from "../components/LineTypeFilter";
 import { matchesLineType, type LineTypeFilterValue } from "../services/lineType";
-import { StateFilter } from "../components/StateFilter";
-import { useStateFilter } from "../services/useStateFilter";
 import { WorkFormModal } from "../components/WorkFormModal";
 import { trimmingWorkStatus } from "../services/trimmingWork";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { GeospatialAnalysis } from "../components/GeospatialAnalysis";
 import type { Pole, WorkFeedback } from "../services/api";
 import { PoleDetailsModal } from "./EngineerPage";
 
-interface FieldTeamPageProps {
+export interface FieldTeamPageProps {
     poles: Pole[];
     workFeedback: WorkFeedback[];
+    isLoading: boolean;
+    error: string | null;
     feedbackLoading: boolean;
     feedbackError: string | null;
     onRefreshFeedback: () => void;
-    isLoading: boolean;
-    error: string | null;
     onWorkFormSaved: () => Promise<void>;
 }
 
 type TrimmingStatus = "Completed" | "Not Started" | "In Progress" | "Pending";
 type TrimmingFilter = "All" | TrimmingStatus;
-const riskOptions = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];
+type RiskFilter = "All" | "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
 const pageSize = 10;
 
-export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error, onWorkFormSaved, feedbackLoading, feedbackError, onRefreshFeedback }: FieldTeamPageProps) {
-    const { poles: statePoles, states, selection, setSelection } = useStateFilter(allPoles);
+export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error, feedbackLoading, feedbackError, onRefreshFeedback, onWorkFormSaved }: FieldTeamPageProps) {
     const [lineType, setLineType] = useState<LineTypeFilterValue>("ALL");
-    const poles = useMemo(() => statePoles.filter(pole => matchesLineType(pole.lineType, lineType)), [statePoles, lineType]);
     const feedbackUnavailable = feedbackLoading || !!feedbackError;
     const [formPole, setFormPole] = useState<Pole | null>(null);
     const [trimmingFilter, setTrimmingFilter] = useState<TrimmingFilter>("All");
-    const [riskFilter, setRiskFilter] = useState<string[] | null>(null);
-    const [substationFilter, setSubstationFilter] = useState<string[] | null>(null);
-    const [landCoverFilter, setLandCoverFilter] = useState<string[] | null>(null);
-    const landCovers = useMemo(() => [...new Set(poles.map(workPackLandCover))].sort((a, b) => a.localeCompare(b)), [poles]);
-    const substations = useMemo(() => [...new Set(poles.map(workPackSubstation))].sort((a, b) => a.localeCompare(b)), [poles]);
-    const [search, setSearch] = useState("");
-    const [page, setPage] = useState(1);
-    const [targetPoleId, setTargetPoleId] = useState<string | null>(null);
-    const [selectedPole, setSelectedPole] = useState<Pole | null>(null);
-    const priorityPoles = useMemo(() => [...poles]
-        .sort((first, second) => riskScore(second) - riskScore(first)), [poles]);
+    const [riskFilter, setRiskFilter] = useState<RiskFilter>("All");
+    const [substationFilter, setSubstationFilter] = useState("");
     const trimmingWorkByPole = useMemo(() => {
         const feedbackByPole = new Map<string, string>();
         workFeedback.forEach((feedback) => {
@@ -53,6 +40,18 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
         });
         return feedbackByPole;
     }, [workFeedback]);
+    const poles = useMemo(() => allPoles.filter(pole =>
+        matchesLineType(pole.lineType, lineType)
+        && (trimmingFilter === "All" || (!feedbackUnavailable
+            && trimmingWorkStatus(trimmingWorkByPole.get(normalizePoleId(pole.poleId))) === trimmingFilter))
+    ), [allPoles, lineType, trimmingFilter, feedbackUnavailable, trimmingWorkByPole]);
+    const substations = useMemo(() => [...new Set(poles.map(workPackSubstation))].sort((a, b) => a.localeCompare(b)), [poles]);
+    const [search, setSearch] = useState("");
+    const [page, setPage] = useState(1);
+    const [targetPoleId, setTargetPoleId] = useState<string | null>(null);
+    const [selectedPole, setSelectedPole] = useState<Pole | null>(null);
+    const priorityPoles = useMemo(() => [...poles]
+        .sort((first, second) => riskScore(second) - riskScore(first)), [poles]);
     const statusCounts = useMemo(() => {
         const counts: Record<TrimmingStatus, number> = {
             "Completed": 0,
@@ -73,22 +72,20 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
         && trimmingWorkStatus(trimmingWorkByPole.get(normalizePoleId(pole.poleId))) === "Pending"
     ), [priorityPoles, trimmingWorkByPole]);
     const filteredPoles = useMemo(() => priorityPoles.filter((pole) => {
-        if (substationFilter !== null && !substationFilter.includes(workPackSubstation(pole))) return false;
-        if (landCoverFilter !== null && !landCoverFilter.includes(workPackLandCover(pole))) return false;
+        if (substationFilter && workPackSubstation(pole) !== substationFilter) return false;
         const query = search.trim().toLowerCase();
         if (query && ![pole.poleId, pole.feederId, pole.streetName, pole.substation]
             .some((value) => (value ?? "").toLowerCase().includes(query))) return false;
-        if (riskFilter !== null && !riskFilter.includes(riskLevel(pole))) return false;
-        if (feedbackUnavailable || trimmingFilter === "All") return true;
-        return trimmingWorkStatus(trimmingWorkByPole.get(normalizePoleId(pole.poleId))) === trimmingFilter;
-    }), [priorityPoles, trimmingWorkByPole, trimmingFilter, riskFilter, substationFilter, landCoverFilter, search, feedbackUnavailable]);
+        if (riskFilter !== "All" && riskLevel(pole) !== riskFilter) return false;
+        return true;
+    }), [priorityPoles, riskFilter, substationFilter, search]);
     const priorityRankByPole = useMemo(() => new Map(priorityPoles.map((pole, index) => [pole, index + 1])), [priorityPoles]);
     const totalPages = Math.max(1, Math.ceil(filteredPoles.length / pageSize));
     const pagePoles = filteredPoles.slice((page - 1) * pageSize, page * pageSize);
 
-    const hasActiveFilters = substationFilter !== null || landCoverFilter !== null || search.trim() !== "" || riskFilter !== null || trimmingFilter !== "All";
+    const hasActiveFilters = substationFilter !== "" || search.trim() !== "" || riskFilter !== "All";
 
-    useEffect(() => setPage(1), [riskFilter, trimmingFilter, substationFilter, landCoverFilter, search]);
+    useEffect(() => setPage(1), [riskFilter, trimmingFilter, substationFilter, search]);
     useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
     useEffect(() => {
         if (!targetPoleId) return;
@@ -99,33 +96,27 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
         setTargetPoleId(null);
     }, [targetPoleId, pagePoles]);
 
-    function selectRankedSubstation(substation: string | null) {
-        setSubstationFilter(substation === null ? null : [substation]);
+    function resetFilters() {
+        setSubstationFilter("");
         setSearch("");
-        setRiskFilter(null);
-        setLandCoverFilter(null);
-        setTrimmingFilter("All");
+        setRiskFilter("All");
         setPage(1);
-        setTargetPoleId(null);
     }
 
-    function resetFilters() {
-        setSubstationFilter(null);
-        setLandCoverFilter(null);
+    function selectRankedSubstation(substation: string | null) {
+        setSubstationFilter(substation ?? "");
         setSearch("");
-        setRiskFilter(null);
-        setTrimmingFilter("All");
+        setRiskFilter("All");
         setPage(1);
+        setTargetPoleId(null);
     }
 
     function openPendingPole(pole: Pole) {
         const poleId = pole.poleId?.trim();
         if (!poleId) return;
-        setSubstationFilter(null);
-        setLandCoverFilter(null);
+        setSubstationFilter("");
         setSearch(poleId);
-        setRiskFilter(["CRITICAL"]);
-        setTrimmingFilter("Pending");
+        setRiskFilter("CRITICAL");
         setPage(1);
         setTargetPoleId(poleId);
     }
@@ -162,26 +153,41 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
             <p>Execution-focused view for task selection, route opening, completion status and evidence collection.</p>
             <div className="pill-row"><span>Field validation</span></div>
         </section>
-        <LineTypeFilter value={lineType} onChange={value => { setLineType(value); setSelectedPole(null); setPage(1); setTargetPoleId(null); setFormPole(null); }} />
-        <StateFilter states={states} selection={selection} count={poles.length} onChange={value => { setSelection(value); setPage(1); setSelectedPole(null); setTargetPoleId(null); }} />
+        <div className="field-general-filters">
+            <LineTypeFilter value={lineType} onChange={value => { setLineType(value); setSelectedPole(null); setPage(1); setTargetPoleId(null); setFormPole(null); }} />
+            <fieldset className="page-state-filter">
+                <legend>Filter by trimming work</legend>
+                <select aria-label="Filter by trimming work" disabled={feedbackUnavailable} value={trimmingFilter} onChange={event => {
+                    setTrimmingFilter(event.target.value as TrimmingFilter);
+                    setPage(1);
+                    setSelectedPole(null);
+                    setTargetPoleId(null);
+                    setFormPole(null);
+                }}>
+                    <option value="All">All trimming work</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Not Started">Not Started</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Pending">Pending</option>
+                </select>
+            </fieldset>
+        </div>
+        {feedbackLoading ? <p className="loading" role="status">Loading trimming progress…</p> : feedbackError &&
+            <div className="loading" role="alert">
+                <p>Unable to refresh trimming progress: {feedbackError}</p>
+                <button type="button" onClick={onRefreshFeedback}>Retry</button>
+            </div>}
         <section className="metrics field-team-metrics">
             <FieldMetric label="Today Work Pack" value={priorityPoles.length} note="All risk categories" />
-            <FieldMetric label="Completed" value={feedbackUnavailable ? "—" : statusCounts.Completed} note="Trimming work completed" accent="green" />
-            <FieldMetric label="In Progress" value={feedbackUnavailable ? "—" : statusCounts["In Progress"]} note="Work currently underway" accent="orange" />
-            <FieldMetric label="Not Started" value={feedbackUnavailable ? "—" : statusCounts["Not Started"]} note="Work has not started" accent="red" />
-            <FieldMetric label="Pending" value={feedbackUnavailable ? "—" : statusCounts.Pending} note="Need site action" />
+            <FieldMetric label="Completed" value={statusCounts.Completed} note="Trimming work completed" accent="green" />
+            <FieldMetric label="In Progress" value={statusCounts["In Progress"]} note="Work currently underway" accent="orange" />
+            <FieldMetric label="Not Started" value={statusCounts["Not Started"]} note="Work has not started" accent="red" />
+            <FieldMetric label="Pending" value={statusCounts.Pending} note="Need site action" />
         </section>
-        <div className="field-feedback-refresh">
-            <button type="button" className="export-work-orders-button" onClick={onRefreshFeedback} disabled={feedbackLoading}>
-                {feedbackLoading ? "Loading trimming data…" : "Refresh trimming data"}
-            </button>
-        </div>
-        {feedbackLoading && <p className="field-feedback-notice" role="status">Loading trimming statuses… You can open a work form below.</p>}
-        {feedbackError && <p className="field-feedback-notice" role="alert">Unable to load trimming data: {feedbackError} Use Refresh trimming data to retry. You can still open a work form below.</p>}
         {isLoading ?
         <p className="loading">Loading field work pack…</p>
         : error ? <p className="loading">{error}</p> : poles.length === 0 ?
-        <p className="loading">No poles match the selected state and line type filters.</p> : <>
+        <p className="loading">No poles match the selected general filters.</p> : <>
             <div className="field-team-map">
                 <GeospatialAnalysis poles={poles} onSelectPole={openPendingPole} onViewDetails={setSelectedPole} onOpenForm={setFormPole} onSubstationChange={selectRankedSubstation} />
                 <article className="feeder-ranking-card critical-pending-card">
@@ -191,7 +197,7 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
                             i<span>Critical-risk poles that require field action.</span>
                         </button>
                     </div>
-                    {feedbackUnavailable ? <span className="no-critical-poles">Pending work analysis is unavailable until trimming statuses load.</span> : criticalPendingPoles.length === 0 ? <span className="no-critical-poles">
+                    {criticalPendingPoles.length === 0 ? <span className="no-critical-poles">
                         No Critical poles have pending work.</span>
                             : <ol>{criticalPendingPoles.map((pole, index) => <li key={`${pole.poleId ?? "pole"}-${index}`}>
                         <button className="critical-pending-link" type="button" onClick={() => openPendingPole(pole)}>
@@ -207,7 +213,7 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
                         <div><h3>Field Work Pack</h3>
                         <p>Prioritised inspection and pruning tasks for field execution.</p></div>
                         <div className="field-work-pack-title-actions">
-                            <button className="export-work-orders-button" type="button" onClick={exportWorkOrders} disabled={feedbackUnavailable || filteredPoles.length === 0}>Export Excel</button>
+                            <button className="export-work-orders-button" type="button" onClick={exportWorkOrders} disabled={filteredPoles.length === 0}>Export Excel</button>
                             <span className="data-tag">{filteredPoles.length} of {priorityPoles.length} poles</span>
                         </div>
                     </div>
@@ -217,16 +223,15 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
                         <label className="field-pole-search">Search poles
                             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Pole ID, Feeder ID, Street Name, or Substation" type="search" />
                         </label>
-                        <WorkPackMultiFilter label="Risk category" allLabel="All categories" options={riskOptions} selected={riskFilter} onChange={setRiskFilter} />
-                        <WorkPackMultiFilter label="Substation" allLabel="All substations" options={substations} selected={substationFilter} onChange={setSubstationFilter} />
-                        <WorkPackMultiFilter label="Land cover type" allLabel="All land covers" options={landCovers} selected={landCoverFilter} onChange={setLandCoverFilter} />
-                        <label>Trimming work
-                            <select disabled={feedbackUnavailable} value={trimmingFilter} onChange={(event) => setTrimmingFilter(event.target.value as TrimmingFilter)}>
-                                <option value="All">All</option>
-                                <option value="Completed">Completed</option>
-                                <option value="Not Started">Not Started</option>
-                                <option value="In Progress">In Progress</option>
-                                <option value="Pending">Pending</option>
+                        <label>Risk category
+                            <select value={riskFilter} onChange={(event) => setRiskFilter(event.target.value as RiskFilter)}>
+                                <option value="All">All categories</option><option value="CRITICAL">Critical</option><option value="HIGH">High</option><option value="MEDIUM">Medium</option><option value="LOW">Low</option>
+                            </select>
+                        </label>
+                        <label>Substation
+                            <select value={substationFilter} onChange={event => setSubstationFilter(event.target.value)}>
+                                <option value="">All substations</option>
+                                {substations.map(name => <option key={name} value={name}>{name}</option>)}
                             </select>
                         </label>
                         <button className="reset-filters-button" type="button" onClick={resetFilters} disabled={!hasActiveFilters} aria-label="Reset filters" title="Reset filters">
@@ -238,8 +243,9 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
                     const trimmingWork = trimmingWorkStatus(trimmingWorkByPole.get(normalizePoleId(pole.poleId)));
                     return <article className="field-task" id={fieldTaskId(pole.poleId)} tabIndex={-1} key={`${pole.poleId ?? "pole"}-${index}`}>
                         <div className="field-task-rank" aria-label={`Priority rank ${priorityRankByPole.get(pole)}`}>{priorityRankByPole.get(pole)}</div>
-                        <div className="field-task-info"><h4>{pole.poleId ?? "Unnamed pole"}</h4><p>{pole.streetName ?? "Street not recorded"}</p><small>{pole.action ?? "Field inspection required"}</small>
-                            <span className={`trimming-status ${trimmingStatusClass(trimmingWork)}`}>Trimming work: {feedbackUnavailable && !trimmingWorkByPole.has(normalizePoleId(pole.poleId)) ? "Unavailable" : trimmingWork}</span>
+                        <div className="field-task-info"><h4>{pole.poleId ?? "Unnamed pole"}</h4><p>{pole.streetName ?? "Street not recorded"}</p>
+                            <small>{pole.action ?? "Field inspection required"}</small>
+                            <span className={`trimming-status ${trimmingStatusClass(trimmingWork)}`}>Trimming work: {trimmingWork}</span>
                         </div>
                         <div className="field-task-statuses">
                             <strong className={`risk-${category.toLowerCase()}`}>{category} {pole.finalAiRiskScore ?? "—"}</strong>
@@ -268,7 +274,7 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
     </>;
 }
 
-function FieldMetric({ label, value, note, accent = "blue" }: { label: string; value: number | string; note: string; accent?: string }) {
+function FieldMetric({ label, value, note, accent = "blue" }: { label: string; value: number; note: string; accent?: string }) {
     return <article className="metric"><span>{label}</span><strong className={accent}>{value}</strong><p>{note}</p></article>;
 }
 
@@ -290,42 +296,3 @@ function riskLevel(pole: Pole) {
 function openGoogleMaps(pole: Pole) { window.open(`https://www.google.com/maps?q=${pole.latitude},${pole.longitude}`, "_blank", "noopener,noreferrer"); }
 
 function workPackSubstation(pole: Pole) { return pole.substation?.trim() || pole.feederId?.trim() || "Unassigned feeder"; }
-
-function workPackLandCover(pole: Pole) { return pole.landCoverType?.trim() || "Not recorded"; }
-
-function WorkPackMultiFilter({ label, allLabel, options, selected, onChange }: {
-    label: string; allLabel: string; options: string[]; selected: string[] | null;
-    onChange: (value: string[] | null) => void;
-}) {
-    const ref = useRef<HTMLDetailsElement>(null);
-    const all = selected === null;
-    useEffect(() => {
-        const close = (event: PointerEvent) => {
-            if (ref.current && !ref.current.contains(event.target as Node)) ref.current.open = false;
-        };
-        document.addEventListener("pointerdown", close);
-        return () => document.removeEventListener("pointerdown", close);
-    }, []);
-    return <div className="work-pack-multi-filter">
-        <span>{label}</span>
-        <details ref={ref} onBlur={event => {
-            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) event.currentTarget.open = false;
-        }} onKeyDown={event => {
-            if (event.key === "Escape") { event.currentTarget.open = false; event.currentTarget.querySelector("summary")?.focus(); }
-        }}>
-            <summary aria-label={`${label}: ${all ? allLabel : selected.length + " selected"}`}>
-                {all ? allLabel : selected.length === 0 ? "None selected" : selected.length === 1 ? selected[0] : `${selected.length} selected`}
-            </summary>
-            <div className="work-pack-multi-options" role="group" aria-label={label}>
-                <label><input type="checkbox" checked={all} onChange={() => onChange(all ? [] : null)} />{allLabel}</label>
-                {options.map(option => <label key={option}>
-                    <input type="checkbox" checked={all || selected.includes(option)} onChange={event => {
-                        const current = selected ?? options;
-                        const next = event.target.checked ? [...current, option] : current.filter(value => value !== option);
-                        onChange(options.every(value => next.includes(value)) ? null : next);
-                    }} />{option}
-                </label>)}
-            </div>
-        </details>
-    </div>;
-}

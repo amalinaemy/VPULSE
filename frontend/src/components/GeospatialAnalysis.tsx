@@ -89,14 +89,14 @@ export function GeospatialAnalysis({ poles, showFeederRanking = true, onSelectPo
                 <div className="map-card-tools"><button ref={fullscreenButtonRef} className="map-fullscreen-button" type="button" onClick={() => void toggleFullscreen()} aria-pressed={isFullscreen} aria-label={isFullscreen ? "Exit fullscreen map" : "View map fullscreen"}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d={isFullscreen ? "M9 3v6H3m18 0h-6V3M3 15h6v6m6 0v-6h6" : "M9 3H3v6m12-6h6v6M3 15v6h6m6 0h6v-6"} /></svg>
                     {isFullscreen ? "Exit fullscreen" : "Fullscreen"}
-                </button><label>Substation<select value={activeFeeder ?? ""} onChange={event => { selectSubstation(event.target.value || null); }}>
+                </button><label>Substation<select value={activeFeeder ?? ""} onChange={event => selectSubstation(event.target.value || null)}>
                     <option value="">All substations</option>
                     {substations.map(name => <option key={name} value={name}>{name}</option>)}
                 </select></label><MapRiskFilter selected={riskFilter} onChange={setRiskFilter} /><button className="map-info-button" type="button" aria-label="Map interaction help">i<span>Click marker for details.<br />Double-click marker to open Google Maps.</span></button></div>
             </div>
             {activeFeeder !== null && <div className="map-substation-selection">
                 <span role="status">Substation: <strong>{activeFeeder}</strong> · {mapPoles.length} mapped poles</span>
-                <button className="map-fullscreen-button" type="button" onClick={() => { selectSubstation(null); }}>Show all substations</button>
+                <button className="map-fullscreen-button" type="button" onClick={() => selectSubstation(null)}>Show all substations</button>
             </div>}
             <div className="map-frame">
                 {mapPoles.length === 0 ? <p role="status">No poles with coordinates match these filters.</p> : <MapContainer center={[3.273, 101.36]} zoom={13} scrollWheelZoom className="pole-map">
@@ -113,7 +113,7 @@ export function GeospatialAnalysis({ poles, showFeederRanking = true, onSelectPo
         {showFeederRanking && <article className="feeder-ranking-card">
             <p>Analysis</p><h3>Priority Ranking</h3><span>Ranked by critical-pole count, then highest risk score.</span>
             <ol className="substation-ranking-list" aria-label="Substation priority ranking" tabIndex={0}>{feederRanking.map((feeder, index) => <li key={feeder.id}>
-                <button className={`feeder-rank-button${activeFeeder === feeder.id ? " is-selected" : ""}`} type="button" aria-pressed={activeFeeder === feeder.id} onClick={() => { selectSubstation(activeFeeder === feeder.id ? null : feeder.id); }}>
+                <button className={`feeder-rank-button${activeFeeder === feeder.id ? " is-selected" : ""}`} type="button" aria-pressed={activeFeeder === feeder.id} onClick={() => selectSubstation(activeFeeder === feeder.id ? null : feeder.id)}>
                     <span>
                         <b>{index + 1}. {feeder.id}</b>
                         <small>{feeder.poleCount} poles · {feeder.criticalCount} critical</small>
@@ -208,7 +208,7 @@ function rankFeeders(poles: Pole[]) {
         totals.set(id, current);
     });
     return [...totals.entries()].map(([id, total]) => ({ id, ...total, averageScore: total.poleCount ? total.total / total.poleCount : 0 }))
-        .sort((first, second) => second.criticalCount - first.criticalCount || second.maxScore - first.maxScore || first.id.localeCompare(second.id));
+        .sort((first, second) => second.criticalCount - first.criticalCount || second.averageScore - first.averageScore);
 }
 
 

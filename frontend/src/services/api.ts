@@ -1,9 +1,6 @@
-import { normalizeWorkForm, workFormChoices } from "./workFormResponse";
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5042";
-
-// helpful runtime log when troubleshooting local dev
-console.debug("VITE_API_BASE_URL ->", import.meta.env.VITE_API_BASE_URL, "using ->", API_BASE_URL);
+  import.meta.env.VITE_API_BASE_URL ||
+  "http://localhost:5042";
 
 async function readApiResponse(response: Response): Promise<any> {
   const body = await response.text();
@@ -17,21 +14,30 @@ async function readApiResponse(response: Response): Promise<any> {
   return data;
 }
 
-export async function apiGet<T>(endpoint: string, baseUrl: string = API_BASE_URL): Promise<T> {
-  const response = await fetch(`${baseUrl}${endpoint}`);
+export async function apiGet<T>(
+  endpoint: string
+): Promise<T> {
 
-  return readApiResponse(response);
-}
+  const response =
+    await fetch(
+      `${API_BASE_URL}${endpoint}`
+    );
 
-export async function checkBackend(): Promise<boolean> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/health`);
+  if (!response.ok) {
 
-    return response.ok;
-  } catch (error) {
-    console.error("Backend connection failed:", error);
-    return false;
+    const error =
+      await response.json().catch(
+        () => null
+      );
+
+    throw new Error(
+      error?.detail ??
+      error?.title ??
+      `API request failed: ${response.status}`
+    );
   }
+
+  return response.json();
 }
 
 export interface HealthResponse {
@@ -40,8 +46,12 @@ export interface HealthResponse {
   message: string;
 }
 
-export async function getHealth(): Promise<HealthResponse> {
-  return apiGet<HealthResponse>("/api/health");
+export async function getHealth():
+  Promise<HealthResponse> {
+
+  return apiGet<HealthResponse>(
+    "/api/health"
+  );
 }
 
 export interface Pole {
@@ -58,9 +68,6 @@ export interface Pole {
   finalAiRiskScore: number | null;
   finalAiRiskCategory: string | null;
   landCoverType: string | null;
-
-  // Detail fields are optional because older API responses only contain the
-  // summary fields above. The modal renders a dash when one is unavailable.
   rvi?: number | null;
   ndvi?: number | null;
   vegetationDensity?: string | number | null;
@@ -89,7 +96,7 @@ export async function getPoles():
 
   if (!response.ok) {
     const error = await response.json().catch(() => null);
-    throw new Error(error?.message ?? error?.message ?? error?.detail ?? `Unable to load pole data (HTTP ${response.status}).`);
+    throw new Error(error?.message ?? error?.detail ?? `Unable to load pole data (HTTP ${response.status}).`);
   }
 
   const records = await response.json().catch(() => {
@@ -132,34 +139,14 @@ export async function getPoles():
         null,
 
       finalAiRiskCategory:
-        record["cr1da_finalairiskcategory@OData.Community.Display.V1.FormattedValue"] ??
-        (typeof record.cr1da_finalairiskcategory === "string" ? record.cr1da_finalairiskcategory : null) ??
+        record.cr1da_finalairiskcategory ??
         null,
 
       landCoverType:
-        record["cr1da_landcovertype@OData.Community.Display.V1.FormattedValue"] ??
-        (typeof record.cr1da_landcovertype === "string" ? record.cr1da_landcovertype : null) ??
+        record.cr1da_landcovertype ??
         null,
 
-      state: record.crf11_state ?? null,
-      station: record["crf11_station@OData.Community.Display.V1.FormattedValue"] ?? record.crf11_station ?? null,
-      rvi: record.cr1da_relativevegetationindex ?? null,
-      ndvi: record.cr1da_normalizeddifferencevegetationind ?? null,
-      vegetationDensity: record["cr1da_vegetationdensity@OData.Community.Display.V1.FormattedValue"] ?? record.cr1da_vegetationdensity ?? null,
-      cloudScore: record.cr1da_cloudscore ?? null,
-      rviTrend3m: record["cr1da_rvitrend3months@OData.Community.Display.V1.FormattedValue"] ?? record.cr1da_rvitrend3months ?? null,
-      ndviTrend3m: record["cr1da_ndvitrend3months@OData.Community.Display.V1.FormattedValue"] ?? record.cr1da_ndvitrend3months ?? null,
-      action: record["cr1da_recommendedaction@OData.Community.Display.V1.FormattedValue"] ?? record.cr1da_recommendedaction ?? null,
-      riskReason: record["cr1da_riskreason@OData.Community.Display.V1.FormattedValue"] ?? record.cr1da_riskreason ?? null,
       lineType: record["cr1da_linetype@OData.Community.Display.V1.FormattedValue"] ?? record.cr1da_linetype ?? null,
-      lastPruneDate: record.cr1da_lastprunedate ?? null,
-      outageCount12m: record.cr1da_outagecount12months ?? null,
-      operationalRiskCategory: record["cr1da_operationalriskcategory@OData.Community.Display.V1.FormattedValue"] ?? record.cr1da_operationalriskcategory ?? null,
-      aiRiskGroup: record["cr1da_airiskgroup@OData.Community.Display.V1.FormattedValue"] ?? record.cr1da_airiskgroup ?? null,
-      aiRiskScore: record.cr1da_airiskscore ?? null,
-      workOrderStatus: record["cr1da_workorderstatus@OData.Community.Display.V1.FormattedValue"] ?? record.cr1da_workorderstatus ?? null,
-      aiValidation: record["cr1da_aivalidation@OData.Community.Display.V1.FormattedValue"] ?? record.cr1da_aivalidation ?? null,
-
       substation: record.substation ?? record.cr1da_feederidentifier ?? null,
 
       modifiedOn:
@@ -177,20 +164,8 @@ export interface WorkFeedback {
 }
 
 const feedbackCache = new Map<string, { expires: number; data: WorkFeedback[] }>();
-const feedbackListeners = new Set<(feedback: WorkFeedback) => void>();
-const feedbackKey = (id: string) => id.trim().toLowerCase();
-export function subscribeWorkFeedback(listener: (feedback: WorkFeedback) => void) {
-  feedbackListeners.add(listener);
-  return () => { feedbackListeners.delete(listener); };
-}
-function publishWorkFeedback(poleId: string, trimmingWork: string | null) {
-  const feedback = { poleId, trimmingWork, modifiedOn: null };
-  feedbackCache.set(feedbackKey(poleId), { expires: Date.now() + 300000, data: [feedback] });
-  feedbackListeners.forEach(listener => listener(feedback));
-}
-
 export function invalidateWorkFeedback(poleId?: string) {
-  if (poleId) feedbackCache.delete(feedbackKey(poleId));
+  if (poleId) feedbackCache.delete(poleId.trim());
   else feedbackCache.clear();
 }
 export async function getWorkFeedback(poleIds: string[], signal?: AbortSignal): Promise<WorkFeedback[]> {
@@ -211,7 +186,7 @@ export async function getWorkFeedback(poleIds: string[], signal?: AbortSignal): 
       signal?.throwIfAborted();
       const index = next++;
       const id = ids[index];
-      const cached = feedbackCache.get(feedbackKey(id));
+      const cached = feedbackCache.get(id);
       if (cached && cached.expires > Date.now()) { result[index] = cached.data; continue; }
       try {
         let response = await fetchFeedback(id);
@@ -227,10 +202,7 @@ export async function getWorkFeedback(poleIds: string[], signal?: AbortSignal): 
         if (response.status === 504) serviceTimedOut = true;
         const data = await readApiResponse(response);
         if (!Array.isArray(data)) throw new Error('Invalid trimming data response.');
-        // A form may have been saved while this request was in flight.
-        const newer = feedbackCache.get(feedbackKey(id));
-        if (newer && newer !== cached) { result[index] = newer.data; continue; }
-        feedbackCache.set(feedbackKey(id), { expires: Date.now() + 300000, data });
+        feedbackCache.set(id, { expires: Date.now() + 300000, data });
         result[index] = data;
       } catch (error) {
         signal?.throwIfAborted();
@@ -246,40 +218,167 @@ export async function getWorkFeedback(poleIds: string[], signal?: AbortSignal): 
   if (connectionFailed) throw new Error("Could not connect to the work-record service. Background requests have stopped. Check your connection, then use Refresh to retry. Successful requests are retained.");
   if (serviceTimedOut) throw new Error("The work-record service timed out. Background requests have stopped. Successful results are retained; use Refresh to retry after the service recovers. You can still open an individual work form.");
   if (failures.length) throw new Error(`${failures.length} pole(s) could not load. ${failures[0]} Successful requests are retained; Refresh retries missing data.`);
-  return ids.flatMap((id, index) => feedbackCache.get(feedbackKey(id))?.data ?? result[index] ?? []);
+  return result.flat();
 }
 
-export type WorkFormValue = string | number | number[] | null;
+
+
+/*
+|--------------------------------------------------------------------------
+| Work Form
+|--------------------------------------------------------------------------
+*/
+
+export type WorkFormValue =
+  string |
+  number |
+  boolean |
+  number[] |
+  null;
+
+
 export interface WorkFormField {
-  name: string; label: string; type: string; required: boolean; maxLength: number | null; readOnly?: boolean;
-  options: { value: number; label: string }[] | null; value: WorkFormValue;
+  name: string;
+  label: string;
+  type: string;
+  required: boolean;
+  maxLength: number | null;
+
+  options:
+    {
+      value: number;
+      label: string;
+    }[] | null;
+
+  value: WorkFormValue;
 }
-export interface WorkFormRecord { found?: boolean; id: string | null; version: string | null; fields: WorkFormField[] }
-export async function getWorkForm(poleId: string): Promise<WorkFormRecord> {
-  const before = feedbackCache.get(feedbackKey(poleId));
-  const data = await readApiResponse(await fetch(`/api/work-form?poleId=${encodeURIComponent(poleId)}`, { cache: "no-store" }));
-  const form = normalizeWorkForm(data, poleId);
-  const field = form.fields.find(field => field.name === "crf11_trimmingwork");
-  if (feedbackCache.get(feedbackKey(poleId)) === before) {
-    const label = field?.options?.find(option => option.value === field.value)?.label
-      ?? workFormChoices.crf11_trimmingwork.find(option => option.value === field?.value)?.label
-      ?? (typeof field?.value === "string" ? field.value : null);
-    publishWorkFeedback(poleId, label);
-  }
-  return form;
+
+
+export interface WorkFormRecord {
+  found?: boolean;
+  id: string | null;
+  version: string | null;
+  fields: WorkFormField[];
 }
-export async function saveWorkForm(poleId: string, id: string | null, version: string | null, values: Record<string, WorkFormValue>): Promise<void> {
-  const body = JSON.stringify({ id, version, values });
-  if (new TextEncoder().encode(body).length > 4_400_000) throw new Error("The form and photos are too large. Choose smaller images and try again.");
-  const response = await fetch(`/api/work-form?poleId=${encodeURIComponent(poleId)}`, {
-    method: "PUT", headers: { "Content-Type": "application/json" }, body,
-  });
+
+
+/*
+|--------------------------------------------------------------------------
+| GET Work Form
+|--------------------------------------------------------------------------
+|
+| React
+|   ↓
+| /api/work-form?poleId=...
+|   ↓
+| Vercel API
+|   ↓
+| Power Automate
+|   ↓
+| LV VM Model
+|
+*/
+
+export async function getWorkForm(
+  poleId: string
+): Promise<WorkFormRecord> {
+
+  const response =
+    await fetch(
+      `/api/work-form?poleId=${
+        encodeURIComponent(poleId)
+      }`
+    );
+
+
   if (!response.ok) {
-    const error = await response.json().catch(() => null);
-    throw new Error(error?.message ?? error?.detail ?? "Unable to save the work form.");
+
+    const error =
+      await response
+        .json()
+        .catch(() => null);
+
+
+    throw new Error(
+      error?.message ??
+      error?.detail ??
+      `Unable to load work form (HTTP ${response.status}).`
+    );
   }
-  if (Object.hasOwn(values, "crf11_trimmingwork")) {
-    const status = workFormChoices.crf11_trimmingwork.find(option => option.value === values.crf11_trimmingwork)?.label;
-    publishWorkFeedback(poleId, status ?? null);
+
+
+  const data =
+    await response.json();
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Vercel API should return WorkFormRecord
+  |--------------------------------------------------------------------------
+  */
+
+  return data as WorkFormRecord;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| SAVE Work Form
+|--------------------------------------------------------------------------
+|
+| React
+|   ↓
+| PUT /api/work-form
+|   ↓
+| Vercel API
+|   ↓
+| Power Automate
+|   ↓
+| Add / Update LV VM Model
+|
+*/
+
+export async function saveWorkForm(
+  poleId: string,
+  id: string | null,
+  version: string | null,
+  values: Record<string, WorkFormValue>
+): Promise<void> {
+
+  const response =
+    await fetch(
+      `/api/work-form?poleId=${
+        encodeURIComponent(poleId)
+      }`,
+      {
+        method: "PUT",
+
+        headers: {
+          "Content-Type":
+            "application/json"
+        },
+
+        body: JSON.stringify({
+          id,
+          version,
+          values
+        })
+      }
+    );
+
+
+  if (!response.ok) {
+
+    const error =
+      await response
+        .json()
+        .catch(() => null);
+
+
+    throw new Error(
+      error?.message ??
+      error?.detail ??
+      `Unable to save work form (HTTP ${response.status}).`
+    );
   }
 }

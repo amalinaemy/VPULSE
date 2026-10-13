@@ -4,8 +4,8 @@ import { matchesLineType, type LineTypeFilterValue } from "../services/lineType"
 import { StateFilter } from "../components/StateFilter";
 import { useStateFilter } from "../services/useStateFilter";
 import { poleTrimmingStatus } from "../services/trimmingWork";
-import { useEffect, useMemo, useState } from "react";
-import { getWorkForm, type Pole, type WorkFeedback } from "../services/api";
+import { useMemo, useState } from "react";
+import type { Pole, WorkFeedback } from "../services/api";
 import { GeospatialAnalysis } from "../components/GeospatialAnalysis";
 import { EngineerHierarchyTable } from "../components/EngineerHierarchyTable";
 
@@ -36,10 +36,14 @@ export function EngineerPage({ poles: allPoles, workFeedback, isLoading, error }
             <h2>Pole-Level Technical Analytics</h2>
             <p>Map-first risk triage with feeder ranking, live Dataverse pole markers and work-order-ready actions.</p>
         </section>
+
         <LineTypeFilter value={lineType} onChange={value => { setLineType(value); setSelectedPole(null); setHierarchyTarget(null); }} />
         <StateFilter states={states} selection={selection} count={poles.length} onChange={value => { setSelection(value); setSelectedPole(null); setHierarchyTarget(null); }} />
         {!isLoading && !error && poles.length > 0 && <section className="risk-insights" aria-label="Risk overview"><div className="risk-summary-cards">
-            {riskLevels.map((category) => <article className={`risk-summary-card risk-${category.toLowerCase()}`} key={category}><span>{category}</span><strong>{riskSummary[category]}</strong><small>poles</small></article>)}
+            {riskLevels.map((category) => <article className={`risk-summary-card risk-${category.toLowerCase()}`} key={category}><span>{category}</span>
+            <strong>{riskSummary[category]}</strong>
+            <small>poles</small>
+            </article>)}
         </div></section>}
         {!isLoading && !error && poles.length > 0 && <GeospatialAnalysis poles={poles} onSelectPole={openPoleRecord} onViewDetails={setSelectedPole} />}
         {!isLoading && !error && poles.length === 0 && <p role="status">No poles match the selected state and line type filters.</p>}
@@ -49,18 +53,6 @@ export function EngineerPage({ poles: allPoles, workFeedback, isLoading, error }
 }
 
 export function PoleDetailsModal({ pole, workFeedback, onClose }: { pole: Pole; workFeedback: WorkFeedback[]; onClose: () => void }) {
-    const [statusLoading, setStatusLoading] = useState(true);
-    const [statusError, setStatusError] = useState(false);
-    useEffect(() => {
-        let active = true;
-        setStatusLoading(true);
-        setStatusError(false);
-        if (!pole.poleId) { setStatusLoading(false); setStatusError(true); return; }
-        getWorkForm(pole.poleId)
-            .catch(() => { if (active) setStatusError(true); })
-            .finally(() => { if (active) setStatusLoading(false); });
-        return () => { active = false; };
-    }, [pole.poleId]);
     const category = riskLevel(pole);
     const openMap = () => window.open(`https://www.google.com/maps?q=${pole.latitude},${pole.longitude}`, "_blank", "noopener,noreferrer");
     return <MapModalPortal><div className="pole-modal-backdrop" role="presentation" onMouseDown={onClose}>
@@ -86,9 +78,9 @@ export function PoleDetailsModal({ pole, workFeedback, onClose }: { pole: Pole; 
                 <Detail label="Operational category" value={pole.operationalRiskCategory} />
                 <Detail label="AI risk group" value={pole.aiRiskGroup} />
                 <Detail label="AI risk score" value={pole.aiRiskScore} />
-                <Detail label="Trimming work status" value={statusLoading ? "Loading…" : statusError ? "Unavailable — reopen details to retry" : poleTrimmingStatus(pole.poleId, workFeedback)} />
+                <Detail label="Trimming work status" value={poleTrimmingStatus(pole.poleId, workFeedback)} />
                 <Detail label="AI validation" value={pole.aiValidation} />
-                <Detail label="Modified on" value={formatModifiedOn(pole.modifiedOn)} />
+                <Detail label="Modified on" value={formatDate(pole.modifiedOn)} />
             </dl>
             <div className="pole-modal-actions"><button type="button" onClick={openMap}>Open Google Maps</button></div>
         </section>
@@ -98,15 +90,6 @@ export function PoleDetailsModal({ pole, workFeedback, onClose }: { pole: Pole; 
 function Detail({ label, value }: { label: string; value?: string | number | null }) { return <div><dt>{label}</dt><dd>{display(value)}</dd></div>; }
 function display(value?: string | number | null) { return value === null || value === undefined || value === "" ? "—" : value; }
 function formatDate(value?: string | null) { return value ? new Date(value).toLocaleString() : "—"; }
-function formatModifiedOn(value?: string | null) {
-    if (!value || !Number.isFinite(Date.parse(value))) return "—";
-    return new Date(value).toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        timeZone: "Asia/Kuala_Lumpur",
-    });
-}
 
 function riskLevel(pole: Pole): RiskCategory {
     const category = pole.finalAiRiskCategory?.toString().trim().toUpperCase();

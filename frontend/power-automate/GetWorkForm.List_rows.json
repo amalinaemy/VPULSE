@@ -1,0 +1,18 @@
+{
+  "type": "OpenApiConnection",
+  "inputs": {
+    "parameters": {
+      "entityName": "cr1da_lvvmmodels",
+      "$select": "cr1da_lvvmmodelid,cr1da_aiconfirmedenroachment,cr1da_feederid,cr1da_fieldtrimmingrequired,crf11_gambarselepasditapak,cr1da_gambarsemasaditapak,cr1da_namapegawaicontractors,cr1da_inspectiondate,cr1da_inspectionstatus,cr1da_gpsautocapture,cr1da_gambaraireference,cr1da_feederpolesection,cr1da_remarksactiontaken,cr1da_risklevel,cr1da_zone,crf11_trimmingwork,modifiedon",
+      "$filter": "cr1da_feederpolesection eq '@{replace(triggerBody()?['poleId'], decodeUriComponent('%27'), concat(decodeUriComponent('%27'), decodeUriComponent('%27')))}'",
+      "$orderby": "modifiedon desc",
+      "$top": 1
+    },
+    "host": {
+      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+      "connection": "shared_commondataserviceforapps",
+      "operationId": "ListRecords"
+    }
+  },
+  "runAfter": {}
+}

@@ -31,7 +31,6 @@ interface FormFieldProps {
 
 export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
     const dialog = useRef<HTMLDialogElement>(null);
-    const [loadAttempt, setLoadAttempt] = useState(0);
     const [record, setRecord] = useState<WorkFormRecord | null>(null);
     const [values, setValues] = useState<Record<string, WorkFormValue>>({});
     const [error, setError] = useState("");
@@ -51,8 +50,6 @@ export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
 
     useEffect(() => {
         let active = true;
-        setError("");
-        setRecord(null);
         getWorkForm(pole.poleId!)
             .then((form) => {
                 if (!active) return;
@@ -66,7 +63,7 @@ export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
                 if (active) setError(error.message);
             });
         return () => { active = false; };
-    }, [pole, loadAttempt]);
+    }, [pole]);
 
     function updateField(name: string, value: WorkFormValue) {
         setValues(current => ({ ...current, [name]: value }));
@@ -139,7 +136,6 @@ export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
 
                 {error && <p role="alert" className="work-form-error">{error}</p>}
                 {record?.found === false && <p role="status">No existing work record was found for this pole. Pole details are prefilled below.</p>}
-                {!record && error && <button type="button" onClick={() => setLoadAttempt(attempt => attempt + 1)}>Retry loading form</button>}
                 {!record && !error && <p role="status">Loading work form…</p>}
 
                 <fieldset disabled={saving || saved} className="work-form-fields">

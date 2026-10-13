@@ -10,4 +10,3 @@ export function useStateFilter(allPoles: Pole[]) {
         : allPoles.filter(pole => selection.includes(stateName(pole))), [allPoles, selection]);
     return { poles, states, selection, setSelection };
 }
-
