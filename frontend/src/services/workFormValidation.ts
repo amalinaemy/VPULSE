@@ -20,10 +20,15 @@ export function validateWorkForm(values: Record<string, unknown>, now = new Date
     const value = values[name];
     if (value == null || (typeof value === 'string' && !value.trim())) errors[name] = `${label} is required.`;
   }
-  const {today, yesterday} = workDateRange(now);
+  const {today} = workDateRange(now);
   for (const [name, label] of [['cr1da_inspectiondate', 'Inspection Date'], ['crf11_trimmingdate', 'Trimming Date']]) {
     const value = values[name];
-    if (value != null && value !== '' && value !== today && value !== yesterday) errors[name] = `${label} must be today or yesterday (Malaysia time).`;
+    if (value != null && value !== '') {
+      const validDate = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+        && Number.isFinite(Date.parse(`${value}T00:00:00Z`))
+        && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
+      if (!validDate || String(value) > today) errors[name] = `${label} must be a valid date on or before today (Malaysia time).`;
+    }
   }
   return errors;
 }

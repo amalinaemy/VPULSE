@@ -195,7 +195,7 @@ export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
 
 function FormField({ field, value, onChange, onImageChange, error }: FormFieldProps) {
     const locked = isLockedField(field);
-    const { today, yesterday } = workDateRange();
+    const { today } = workDateRange();
     const dateRestricted = ["cr1da_inspectiondate", "crf11_trimmingdate"].includes(field.name);
 
     if (field.type === "choice" || field.type === "multiselect") {
@@ -258,7 +258,6 @@ function FormField({ field, value, onChange, onImageChange, error }: FormFieldPr
             required={field.required && !locked}
             maxLength={field.maxLength ?? undefined}
             type={field.type === "number" ? "number" : field.type === "date" ? "date" : "text"}
-            min={dateRestricted ? yesterday : undefined}
             max={dateRestricted ? today : undefined}
             step="any"
             value={String(value ?? "")}

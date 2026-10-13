@@ -4,11 +4,11 @@ import { validateWorkForm, workDateRange } from '../src/services/workFormValidat
 import handler from '../api/work-form.ts';
 const now=new Date('2026-10-13T16:01:00Z');
 const valid={cr1da_inspectionstatus:0,cr1da_risklevel:0,cr1da_namapegawaicontractors:'Officer',cr1da_inspectiondate:'2026-10-14',cr1da_aiconfirmedenroachment:0,cr1da_fieldtrimmingrequired:false,crf11_trimmingwork:0};
-test('Malaysia date boundaries allow today and yesterday, rejecting older/future/invalid dates',()=>{
+test('Malaysia date boundaries allow today and all earlier dates, rejecting future/invalid dates',()=>{
  assert.deepEqual(workDateRange(now),{today:'2026-10-14',yesterday:'2026-10-13'});
  assert.deepEqual(workDateRange(new Date('2026-12-31T16:00:00Z')),{today:'2027-01-01',yesterday:'2026-12-31'});
- for(const date of ['2026-10-14','2026-10-13'])assert.deepEqual(validateWorkForm({...valid,cr1da_inspectiondate:date,crf11_trimmingdate:date},now),{});
- for(const date of ['2026-10-12','2026-10-15','bad']){
+ for(const date of ['2026-10-14','2026-10-13','2026-09-03','2020-02-29'])assert.deepEqual(validateWorkForm({...valid,cr1da_inspectiondate:date,crf11_trimmingdate:date},now),{});
+ for(const date of ['2026-10-15','bad','2026-02-30']){
   const errors=validateWorkForm({...valid,cr1da_inspectiondate:date,crf11_trimmingdate:date},now);
   assert.ok(errors.cr1da_inspectiondate);assert.ok(errors.crf11_trimmingdate);
  }
