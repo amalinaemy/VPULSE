@@ -1,3 +1,5 @@
+import { StateFilter } from "../components/StateFilter";
+import { useStateFilter } from "../services/useStateFilter";
 import { LineTypeFilter } from "../components/LineTypeFilter";
 import { matchesLineType, type LineTypeFilterValue } from "../services/lineType";
 import { WorkFormModal } from "../components/WorkFormModal";
@@ -24,6 +26,7 @@ type RiskFilter = "All" | "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
 const pageSize = 10;
 
 export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error, feedbackLoading, feedbackError, onRefreshFeedback, onWorkFormSaved }: FieldTeamPageProps) {
+    const { poles: statePoles, states, selection, setSelection } = useStateFilter(allPoles);
     const [lineType, setLineType] = useState<LineTypeFilterValue>("ALL");
     const feedbackUnavailable = feedbackLoading || !!feedbackError;
     const [formPole, setFormPole] = useState<Pole | null>(null);
@@ -40,11 +43,11 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
         });
         return feedbackByPole;
     }, [workFeedback]);
-    const poles = useMemo(() => allPoles.filter(pole =>
+    const poles = useMemo(() => statePoles.filter(pole =>
         matchesLineType(pole.lineType, lineType)
         && (trimmingFilter === "All" || (!feedbackUnavailable
             && trimmingWorkStatus(trimmingWorkByPole.get(normalizePoleId(pole.poleId))) === trimmingFilter))
-    ), [allPoles, lineType, trimmingFilter, feedbackUnavailable, trimmingWorkByPole]);
+    ), [statePoles, lineType, trimmingFilter, feedbackUnavailable, trimmingWorkByPole]);
     const substations = useMemo(() => [...new Set(poles.map(workPackSubstation))].sort((a, b) => a.localeCompare(b)), [poles]);
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
@@ -172,6 +175,13 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
                 </select>
             </fieldset>
         </div>
+        <StateFilter states={states} selection={selection} count={poles.length} onChange={value => {
+            setSelection(value);
+            setPage(1);
+            setSelectedPole(null);
+            setTargetPoleId(null);
+            setFormPole(null);
+        }} />
         {feedbackLoading ? <p className="loading" role="status">Loading trimming progress…</p> : feedbackError &&
             <div className="loading" role="alert">
                 <p>Unable to refresh trimming progress: {feedbackError}</p>
