@@ -10,7 +10,7 @@ import ts from 'typescript';
 const require = createRequire(import.meta.url);
 async function loadSource(path: string, jsx = false) {
   let source = await readFile(new URL(path, import.meta.url), 'utf8');
-  source = source.replaceAll('import.meta.env', '({})');
+  source = source.replaceAll('import.meta.env', '({})').replace('"./workFormResponse"', JSON.stringify(new URL('../src/services/workFormResponse.ts', import.meta.url).href));
   if (jsx) source = `import * as React from ${JSON.stringify(pathToFileURL(require.resolve('react')).href)};\n` + source;
   const compiled = ts.transpileModule(source, { compilerOptions: {
     module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2023, jsx: ts.JsxEmit.React,

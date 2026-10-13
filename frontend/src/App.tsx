@@ -13,7 +13,7 @@ import { WorkForm } from "./pages/WorkForm";
 import {
     getPoles,
     getWorkFeedback,
-    invalidateWorkFeedback,
+    subscribeWorkFeedback,
     type Pole,
     type WorkFeedback,
 } from "./services/api";
@@ -104,6 +104,10 @@ function App() {
         loadInitialData();
     }, []);
 
+    useEffect(() => subscribeWorkFeedback(feedback => {
+        setWorkFeedback(current => [...current.filter(item => item.poleId?.trim().toLowerCase() !== feedback.poleId?.trim().toLowerCase()), feedback]);
+    }), []);
+
     // Load feedback for the active view; form access is independent of this request.
     useEffect(() => {
         if (isLoadingPoles || polesError || !["field", "executive", "engineer"].includes(activeView)) return;
@@ -111,15 +115,9 @@ function App() {
         let active = true;
         setFeedbackLoading(true);
         setFeedbackError(null);
-        const feedbackPoles = activeView === "field" ? poles.filter(pole => {
-            const category = pole.finalAiRiskCategory?.trim().toUpperCase();
-            if (category && ["CRITICAL", "HIGH", "MEDIUM", "LOW"].includes(category)) return ["CRITICAL", "HIGH"].includes(category);
-            return Number(pole.finalAiRiskScore ?? -1) >= 60;
-        }) : poles;
-        getWorkFeedback(feedbackPoles.flatMap(pole => pole.poleId ? [pole.poleId] : []), controller.signal)
-            .then(feedback => {
-                if (active) setWorkFeedback(feedback);
-            })
+        getWorkFeedback(poles.flatMap(pole => pole.poleId ? [pole.poleId] : []), controller.signal, feedback => {
+            if (active) setWorkFeedback(current => [...current.filter(item => item.poleId?.trim().toLowerCase() !== feedback.poleId?.trim().toLowerCase()), feedback]);
+        })
             .catch(error => {
                 if (active) setFeedbackError(error instanceof Error ? error.message : "Unable to load work feedback.");
             })
@@ -217,12 +215,12 @@ function App() {
                     <FieldTeamPage
                         feedbackLoading={feedbackLoading}
                         feedbackError={feedbackError}
-                        onRefreshFeedback={() => { invalidateWorkFeedback(); setFeedbackRefresh(value => value + 1); }}
+                        onRefreshFeedback={() => { setFeedbackRefresh(value => value + 1); }}
                         poles={poles}
                         workFeedback={workFeedback}
                         isLoading={isLoadingPoles}
                         error={polesError}
-                        onWorkFormSaved={async () => { invalidateWorkFeedback(); setFeedbackRefresh(value => value + 1); }}
+                        onWorkFormSaved={async () => { /* Saved status is published directly to subscribers. */ }}
                     />
                 );
 

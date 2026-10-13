@@ -101,6 +101,7 @@ export default async function handler(
           flowUrl,
           {
             method: "POST",
+            signal: AbortSignal.timeout(55000),
 
             headers: {
               "Content-Type":
@@ -145,10 +146,10 @@ export default async function handler(
 
     } catch (error) {
 
-      console.error(
-        "Get Work Form API error:",
-        error
-      );
+      if (error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name)) {
+        return res.status(504).json({ message: "GetWorkForm exceeded 55 seconds. Please retry after the flow recovers." });
+      }
+      console.error("Get Work Form API connection failed.");
 
 
       return res.status(500).json({

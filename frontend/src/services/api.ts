@@ -1,3 +1,4 @@
+import { normalizeWorkForm, workFormChoices } from "./workFormResponse";
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
   "http://localhost:5042";
@@ -184,63 +185,68 @@ export interface WorkFeedback {
 }
 
 const feedbackCache = new Map<string, { expires: number; data: WorkFeedback[] }>();
+const feedbackKey = (id: string) => id.trim().toLowerCase();
+const feedbackListeners = new Set<(feedback: WorkFeedback) => void>();
+export function subscribeWorkFeedback(listener: (feedback: WorkFeedback) => void) {
+  feedbackListeners.add(listener);
+  return () => { feedbackListeners.delete(listener); };
+}
+function publishFeedback(feedback: WorkFeedback) {
+  if (!feedback.poleId) return;
+  feedbackCache.set(feedbackKey(feedback.poleId), { expires: Date.now() + 300000, data: [feedback] });
+  feedbackListeners.forEach(listener => listener(feedback));
+}
 export function invalidateWorkFeedback(poleId?: string) {
-  if (poleId) feedbackCache.delete(poleId.trim());
+  if (poleId) feedbackCache.delete(feedbackKey(poleId));
   else feedbackCache.clear();
 }
-export async function getWorkFeedback(poleIds: string[], signal?: AbortSignal): Promise<WorkFeedback[]> {
-  const ids = [...new Set(poleIds.map(id => id.trim()).filter(Boolean))];
+export async function getWorkFeedback(poleIds: string[], signal?: AbortSignal,
+  onProgress?: (feedback: WorkFeedback) => void): Promise<WorkFeedback[]> {
+  const ids = [...new Map(poleIds.map(id => [feedbackKey(id), id.trim()])).values()].filter(Boolean);
   const result: WorkFeedback[][] = new Array(ids.length);
   let next = 0;
   const failures: string[] = [];
-  let serviceTimedOut = false;
-  let connectionFailed = false;
-  function fetchFeedback(id: string) {
-    const deadline = AbortSignal.timeout(65000);
-    return fetch(`/api/work-feedback?poleId=${encodeURIComponent(id)}`, {
-      signal: signal ? AbortSignal.any([signal, deadline]) : deadline,
-    });
-  }
+  let stopped = false;
   async function worker() {
-    while (next < ids.length && !serviceTimedOut && !connectionFailed) {
+    while (next < ids.length && !stopped) {
       signal?.throwIfAborted();
       const index = next++;
       const id = ids[index];
-      const cached = feedbackCache.get(id);
-      if (cached && cached.expires > Date.now()) { result[index] = cached.data; continue; }
+      const key = feedbackKey(id);
+      const before = feedbackCache.get(key);
+      if (before && before.expires > Date.now()) {
+        result[index] = before.data;
+        before.data.forEach(item => onProgress?.(item));
+        continue;
+      }
       try {
-        let response = await fetchFeedback(id);
-        if ([429, 502, 503].includes(response.status)) {
-          const failure = await response.clone().json().catch(() => null);
-          if (failure?.retryable !== false) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            signal?.throwIfAborted();
-            response = await fetchFeedback(id);
-          }
-        }
-        // Stop scheduling more flow runs when the service is already timing out.
-        if (response.status === 504) serviceTimedOut = true;
+        const deadline = AbortSignal.timeout(65000);
+        const response = await fetch(`/api/work-feedback?poleId=${encodeURIComponent(id)}`, {
+          signal: signal ? AbortSignal.any([signal, deadline]) : deadline,
+        });
+        // Do not create more flow runs while the service is overloaded or unavailable.
+        if ([429, 502, 503, 504].includes(response.status)) stopped = true;
         const data = await readApiResponse(response);
+        signal?.throwIfAborted();
         if (!Array.isArray(data)) throw new Error('Invalid trimming data response.');
-        feedbackCache.set(id, { expires: Date.now() + 300000, data });
-        result[index] = data;
+        // A form load/save may have published a newer status while this read was pending.
+        const current = feedbackCache.get(key);
+        const records: WorkFeedback[] = current !== before && current ? current.data
+          : data.length ? data : [{ poleId: id, trimmingWork: null, modifiedOn: null }];
+        if (current === before) feedbackCache.set(key, { expires: Date.now() + 300000, data: records });
+        result[index] = records;
+        records.forEach(item => onProgress?.(item));
       } catch (error) {
         signal?.throwIfAborted();
-        // Fetch and response-body reads reject when no usable HTTP response arrives.
-        if (error instanceof TypeError || (error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name))) {
-          connectionFailed = true;
-        }
+        stopped = true;
         failures.push(`${id}: ${error instanceof Error ? error.message : 'Unable to load feedback.'}`);
       }
     }
   }
   await Promise.all(Array.from({ length: Math.min(2, ids.length) }, worker));
-  if (connectionFailed) throw new Error("Could not connect to the work-record service. Background requests have stopped. Check your connection, then use Refresh to retry. Successful requests are retained.");
-  if (serviceTimedOut) throw new Error("The work-record service timed out. Background requests have stopped. Successful results are retained; use Refresh to retry after the service recovers. You can still open an individual work form.");
-  if (failures.length) throw new Error(`${failures.length} pole(s) could not load. ${failures[0]} Successful requests are retained; Refresh retries missing data.`);
+  if (failures.length) throw new Error(`${failures[0]} Background requests stopped. Loaded statuses are retained; Retry resumes unresolved poles.`);
   return result.flat();
 }
-
 
 
 /*
@@ -302,6 +308,7 @@ export interface WorkFormRecord {
 export async function getWorkForm(
   poleId: string
 ): Promise<WorkFormRecord> {
+  const before = feedbackCache.get(feedbackKey(poleId));
 
   const response =
     await fetch(
@@ -337,7 +344,13 @@ export async function getWorkForm(
   |--------------------------------------------------------------------------
   */
 
-  return data as WorkFormRecord;
+  const form = normalizeWorkForm(data, poleId);
+  const field = form.fields.find(field => field.name === "crf11_trimmingwork");
+  const status = field?.options?.find(option => option.value === field.value)?.label ?? null;
+  if (feedbackCache.get(feedbackKey(poleId)) === before) {
+    publishFeedback({ poleId, trimmingWork: status, modifiedOn: null });
+  }
+  return form;
 }
 
 
@@ -401,4 +414,9 @@ export async function saveWorkForm(
       `Unable to save work form (HTTP ${response.status}).`
     );
   }
+  if (Object.prototype.hasOwnProperty.call(values, "crf11_trimmingwork")) {
+    const status = workFormChoices.crf11_trimmingwork.find(option => option.value === values.crf11_trimmingwork)?.label ?? null;
+    publishFeedback({ poleId, trimmingWork: status, modifiedOn: new Date().toISOString() });
+  }
+
 }

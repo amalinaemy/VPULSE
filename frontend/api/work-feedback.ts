@@ -1,3 +1,4 @@
+export const maxDuration = 60;
 const formattedSuffix = '@odata.community.display.v1.formattedvalue';
 
 function recordOf(data: unknown): Record<string, unknown> {
@@ -41,7 +42,7 @@ export default async function handler(req: any, res: any) {
   try {
     const response = await fetch(flowUrl, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ poleId }), signal: AbortSignal.timeout(25000),
+      body: JSON.stringify({ poleId }), signal: AbortSignal.timeout(55000),
     });
     if (!response.ok) {
       const failure: any = await response.json().catch(() => null);
@@ -54,7 +55,10 @@ export default async function handler(req: any, res: any) {
     } catch (error) {
       return res.status(502).json({ message: error instanceof Error ? error.message : 'Invalid work feedback response.' });
     }
-  } catch {
-    return res.status(502).json({ message: 'Unable to read GetWorkForm. Check the flow run history and Response action.' });
+  } catch (error) {
+    const timedOut = error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name);
+    return res.status(timedOut ? 504 : 502).json({ retryable: false, message: timedOut
+      ? 'GetWorkForm exceeded 55 seconds. Check the slow List rows action; retry after the flow recovers.'
+      : 'Unable to read GetWorkForm. Check the flow run history and Response action.' });
   }
 }

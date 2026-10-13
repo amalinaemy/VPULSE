@@ -1,10 +1,23 @@
 {
   "routes": [
-    { "handle": "filesystem" },
-    { "src": "/api/(.*)", "status": 404 },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/api/(.*)",
+      "status": 404
+    },
     {
       "src": "/(.*)",
       "dest": "/index.html"
     }
-  ]
+  ],
+  "functions": {
+    "api/work-form.ts": {
+      "maxDuration": 60
+    },
+    "api/work-feedback.ts": {
+      "maxDuration": 60
+    }
+  }
 }
