@@ -256,6 +256,8 @@ export default async function handler(
         contractorName: textOrNull(values.cr1da_namapegawaicontractors),
         remarks: textOrNull(values.cr1da_remarksactiontaken),
         trimmingWork: values.crf11_trimmingwork ?? null,
+        namaPegawaiCantasan: textOrNull(values.crf11_namapegawaicantasan),
+        trimmingDate: textOrNull(values.crf11_trimmingdate),
         // Preserve optional metadata and image values for flows that use them.
         id: id ?? null, version: version ?? null, values, images,
       };

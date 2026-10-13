@@ -6,7 +6,7 @@ export const isLockedField = (field: {
     label: string;
     readOnly?: boolean;
 }) => field.readOnly === true || lockedFieldNames.has(field.name) || ["poleid", "feederid", "streetname", "latitude", "longitude"].includes(key(field.label));
-const fieldOrder = ["poleid", "feederid", "streetname", "latitude", "longitude", "inspectionstatus", "risklevel", "namapegawaicontractors", "inspectiondate", "aiconfirmedenroachment", "gambarsemasaditapak", "gambarselepasditapak", "fieldtrimmingrequired", "trimmingwork", "remarksactiontaken"];
+const fieldOrder = ["poleid", "feederid", "streetname", "latitude", "longitude", "inspectionstatus", "risklevel", "namapegawaicontractors", "inspectiondate", "aiconfirmedenroachment", "gambarsemasaditapak", "gambarselepasditapak", "fieldtrimmingrequired", "trimmingwork", "namapegawaicantasan", "trimmingdate", "remarksactiontaken"];
 export function sortWorkFormFields(fields: WorkFormField[]) {
     const position = (field: WorkFormField) => fieldOrder.indexOf(field.name === "cr1da_feederpolesection" ? "poleid" : key(field.label));
     return fields.slice().sort((first, second) => position(first) - position(second));

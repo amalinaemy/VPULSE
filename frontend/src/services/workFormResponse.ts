@@ -44,6 +44,8 @@ const fieldDefinitions = [
   ['crf11_gambarselepasditapak', 'Gambar Selepas di Tapak', 'image'],
   ['cr1da_fieldtrimmingrequired', 'Field Trimming Required', 'choice'],
   ['crf11_trimmingwork', 'Trimming Work', 'choice'],
+  ['crf11_namapegawaicantasan', 'Nama Pegawai Cantasan', 'text'],
+  ['crf11_trimmingdate', 'Trimming Date', 'date'],
   ['cr1da_remarksactiontaken', 'Remarks / Action Taken', 'text'],
 ] as const;
 
