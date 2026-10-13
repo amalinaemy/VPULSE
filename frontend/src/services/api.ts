@@ -139,14 +139,34 @@ export async function getPoles():
         null,
 
       finalAiRiskCategory:
-        record.cr1da_finalairiskcategory ??
+        record["cr1da_finalairiskcategory@OData.Community.Display.V1.FormattedValue"] ??
+        (typeof record.cr1da_finalairiskcategory === "string" ? record.cr1da_finalairiskcategory : null) ??
         null,
 
       landCoverType:
-        record.cr1da_landcovertype ??
+        record["cr1da_landcovertype@OData.Community.Display.V1.FormattedValue"] ??
+        (typeof record.cr1da_landcovertype === "string" ? record.cr1da_landcovertype : null) ??
         null,
 
+      state: record.crf11_state ?? null,
+      station: record["crf11_station@OData.Community.Display.V1.FormattedValue"] ?? record.crf11_station ?? null,
+      rvi: record.cr1da_relativevegetationindex ?? null,
+      ndvi: record.cr1da_normalizeddifferencevegetationind ?? null,
+      vegetationDensity: record["cr1da_vegetationdensity@OData.Community.Display.V1.FormattedValue"] ?? record.cr1da_vegetationdensity ?? null,
+      cloudScore: record.cr1da_cloudscore ?? null,
+      rviTrend3m: record["cr1da_rvitrend3months@OData.Community.Display.V1.FormattedValue"] ?? record.cr1da_rvitrend3months ?? null,
+      ndviTrend3m: record["cr1da_ndvitrend3months@OData.Community.Display.V1.FormattedValue"] ?? record.cr1da_ndvitrend3months ?? null,
+      action: record["cr1da_recommendedaction@OData.Community.Display.V1.FormattedValue"] ?? record.cr1da_recommendedaction ?? null,
+      riskReason: record["cr1da_riskreason@OData.Community.Display.V1.FormattedValue"] ?? record.cr1da_riskreason ?? null,
       lineType: record["cr1da_linetype@OData.Community.Display.V1.FormattedValue"] ?? record.cr1da_linetype ?? null,
+      lastPruneDate: record.cr1da_lastprunedate ?? null,
+      outageCount12m: record.cr1da_outagecount12months ?? null,
+      operationalRiskCategory: record["cr1da_operationalriskcategory@OData.Community.Display.V1.FormattedValue"] ?? record.cr1da_operationalriskcategory ?? null,
+      aiRiskGroup: record["cr1da_airiskgroup@OData.Community.Display.V1.FormattedValue"] ?? record.cr1da_airiskgroup ?? null,
+      aiRiskScore: record.cr1da_airiskscore ?? null,
+      workOrderStatus: record["cr1da_workorderstatus@OData.Community.Display.V1.FormattedValue"] ?? record.cr1da_workorderstatus ?? null,
+      aiValidation: record["cr1da_aivalidation@OData.Community.Display.V1.FormattedValue"] ?? record.cr1da_aivalidation ?? null,
+
       substation: record.substation ?? record.cr1da_feederidentifier ?? null,
 
       modifiedOn:
