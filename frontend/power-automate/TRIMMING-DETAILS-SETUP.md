@@ -1,6 +1,6 @@
 # Connect the new trimming details
 
-The form displays Nama Pegawai Cantasan (text) and Trimming Date (date) immediately after Field Trimming Required and Trimming Work, before Remarks. Existing records without these values show blank inputs. Clearing a value sends null.
+The form displays Nama Pegawai (Cantasan) (text) and Trimming Date (date) immediately after Field Trimming Required and Trimming Work, before Remarks. Existing records without these values show blank inputs. Clearing a value sends null.
 
 ## GetWorkForm
 
