@@ -46,3 +46,22 @@ test('numeric Dataverse choices become labels and the home page renders after da
     assert.match(html, /Critical/);
   } finally { globalThis.fetch = originalFetch; }
 });
+
+
+test('pole subzones use Dataverse values for each state without assigning missing values', async () => {
+  const api = await loadSource('../src/services/api.ts');
+  const originalFetch = globalThis.fetch;
+  try {
+    const records = [
+      ...['P1', 'P2', 'P3'].map(subzone => ({ crf11_state: 'PENANG', crf11_subzone: subzone })),
+      ...['A1', 'A2', 'A3'].map(subzone => ({ crf11_state: 'PERAK', crf11_subzone: subzone })),
+      { crf11_state: 'PERLIS' },
+      { crf11_subzone: 100000001, 'crf11_subzone@OData.Community.Display.V1.FormattedValue': 'P2' },
+      { crf11_subzone: 100000001 },
+    ];
+    globalThis.fetch = async () => Response.json(records);
+    const poles = await api.getPoles();
+    assert.deepEqual(poles.map((pole: { subzone: string | null }) => pole.subzone),
+      ['P1', 'P2', 'P3', 'A1', 'A2', 'A3', null, 'P2', null]);
+  } finally { globalThis.fetch = originalFetch; }
+});

@@ -18,7 +18,6 @@ const levelLabels: Record<Level, string> = {
 
 const configuredValues: Partial<Record<Level, string[]>> = {
     zone: ["Utara", "Selatan", "Timur", "Barat", "Metro"],
-    subzone: ["M1", "M2", "M3"],
 };
 
 export function EngineerHierarchyTable({ workFeedback, poles, isLoading, error, targetRequest }: { workFeedback: WorkFeedback[]; poles: Pole[]; isLoading: boolean; error: string | null; targetRequest?: { pole: Pole; request: number } | null }) {
@@ -39,7 +38,7 @@ export function EngineerHierarchyTable({ workFeedback, poles, isLoading, error, 
         .filter((item) => !searchQuery || (item.pole.poleId ?? "").toLowerCase().includes(searchQuery) || item.substation.toLowerCase().includes(searchQuery))
         .filter((item) => riskFilters.length === 0 || riskFilters.includes(riskLevel(item.pole)))
         .filter((item) => landFilters.length === 0 || landFilters.includes(item.pole.landCoverType ?? "Unknown"));
-    const values = currentLevel ? hierarchyValues(currentLevel, matchingPoles) : [];
+    const values = currentLevel ? hierarchyValues(currentLevel, matchingPoles, selection.state) : [];
     const breadcrumbSelection: Selection = { ...selection };
     if (isSearching && matchingPoles.length > 0) {
         for (const level of levels) {
@@ -146,7 +145,7 @@ export function EngineerHierarchyTable({ workFeedback, poles, isLoading, error, 
             <MultiSelect label="LAND COVER TYPE" allLabel="All land types" options={landTypes} selected={landFilters} onChange={setLandFilters} />
             <button className="reset-filters-button" type="button" onClick={() => { setRecordSearch(""); setRiskFilters([]); setLandFilters([]); }} disabled={!recordSearch.trim() && riskFilters.length === 0 && landFilters.length === 0} aria-label="Reset filters" title="Reset filters"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18"><path d="M4 4v6h6M5.6 15a7 7 0 1 0 .7-7.9L4 10" /></svg></button>
         </div>
-        <p className="hierarchy-data-note">Browse records by Zone → State → Subzone → Station → Substation → Street Name. Missing zone, state or station values appear as Unassigned. Subzone currently defaults to M1; substation uses feeder data when unavailable.</p>
+        <p className="hierarchy-data-note">Browse records by Zone → State → Subzone → Station → Substation → Street Name. Subzones use the pole records for the selected state. Missing zone, state, subzone or station values appear as Unassigned. Substation uses feeder data when unavailable.</p>
         {isLoading ? <p className="loading">Loading hierarchy…</p> : error ? <p className="loading">{error}</p> : matchingPoles.length === 0 && isSearching ? <p className="loading" role="status">No records match your search and current filters.</p> : currentLevel && !isSearching ? <HierarchyLevelTable level={currentLevel} values={values} poles={matchingPoles} onChoose={choose} /> : <CandidateTable rows={matchingPoles} onDetails={setSelectedPole} focusPoleId={targetRequest?.pole.poleId ?? null} />}
         {selectedPole && <PoleDetailsModal workFeedback={workFeedback} pole={selectedPole} onClose={() => setSelectedPole(null)} />}
     </section>;
@@ -196,11 +195,24 @@ function toHierarchyPole(pole: Pole): HierarchyPole {
     const feeder = pole.feederId?.trim() || "Unassigned";
     const rawZone = pole.zone?.trim() || "Unassigned";
     const zone = configuredValues.zone?.find((value) => value.toUpperCase() === rawZone.toUpperCase()) ?? rawZone.toUpperCase();
-    return { pole, zone: rawZone === "Unassigned" ? rawZone : zone, state: pole.state?.trim().toUpperCase() || "Unassigned", subzone: pole.subzone?.trim() || "M1", station: pole.station?.trim() || "Unassigned", substation: pole.substation?.trim() || feeder, streetName: pole.streetName?.trim() || "Unknown Street" };
+    return { pole, zone: rawZone === "Unassigned" ? rawZone : zone, state: pole.state?.trim().toUpperCase() || "Unassigned", subzone: pole.subzone?.trim().toUpperCase() || "Unassigned", station: pole.station?.trim() || "Unassigned", substation: pole.substation?.trim() || feeder, streetName: pole.streetName?.trim() || "Unknown Street" };
 }
 
-function hierarchyValues(level: Level, poles: HierarchyPole[]) {
-    const configured = configuredValues[level] ?? [];
+const stateSubzones: Record<string, string[]> = {
+    PENANG: ["P1", "P2", "P3"],
+    "PULAU PINANG": ["P1", "P2", "P3"],
+    PERAK: ["A1", "A2", "A3"],
+    PERLIS: ["K1"],
+    KEDAH: ["K2", "K3"],
+    MELAKA: ["M1"],
+    JOHOR: ["J1", "J2", "J3", "J4", "J5"],
+    KELANTAN: ["D1", "D2", "D3", "D4"],
+};
+
+function hierarchyValues(level: Level, poles: HierarchyPole[], state?: string) {
+    const configured = level === "subzone"
+        ? stateSubzones[state?.trim().toUpperCase() ?? ""] ?? []
+        : configuredValues[level] ?? [];
     return [...new Set([...configured, ...poles.map((item) => item[level]).sort((first, second) => first.localeCompare(second))])];
 }
 

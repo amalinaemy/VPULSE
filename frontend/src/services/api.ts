@@ -150,6 +150,8 @@ export async function getPoles():
         null,
 
       state: record.crf11_state ?? null,
+      subzone: record["crf11_subzone@OData.Community.Display.V1.FormattedValue"] ??
+        (typeof record.crf11_subzone === "string" ? record.crf11_subzone : null),
       station: record["crf11_station@OData.Community.Display.V1.FormattedValue"] ?? record.crf11_station ?? null,
       rvi: record.cr1da_relativevegetationindex ?? null,
       ndvi: record.cr1da_normalizeddifferencevegetationind ?? null,
