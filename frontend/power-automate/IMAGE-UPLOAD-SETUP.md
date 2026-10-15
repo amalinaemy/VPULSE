@@ -1,8 +1,7 @@
 # Save both work-form images using the existing SaveWorkForm flow
 
 This is an extension of SaveWorkForm, not a third flow. Keep the tenant trigger,
-required poleId, and existing Add/Update row actions. The new app/API code must
-be deployed together with these flow changes; it is currently prepared locally.
+required poleId, and existing Add/Update row actions. The app/API sends both images using the contract below. The live flow must include these upload actions to persist them.
 
 ## 1. Extend the HTTP trigger schema
 
@@ -108,8 +107,7 @@ A successful example with both photos is:
 
 ## Verification
 
-Save the flow, then deploy the prepared code. Select JPG/PNG images up to 1.5 MB
-per field and submit an intended work-form update once. Confirm that both upload
+Save the flow, then deploy the prepared code. Use Upload photo or Take photo for each field. The app accepts browser-readable images up to 25 MB and resizes/converts them to JPEG up to 1.5 MB per field, then and submit an intended work-form update once. Confirm that both upload
 actions succeeded and inspect both image columns on the matching Dataverse row.
 Selecting no new image leaves existing images unchanged. The row save and image
 uploads are separate operations: an upload failure can leave the text changes

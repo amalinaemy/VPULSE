@@ -1,3 +1,4 @@
+import { prepareWorkPhoto } from "../services/workPhoto";
 import { requiredWorkFields, validateWorkForm, workDateRange } from "../services/workFormValidation";
 import { MapModalPortal } from "./MapModalPortal";
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
@@ -85,22 +86,20 @@ export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
         });
     }
 
-    function readImage(name: string, event: ChangeEvent<HTMLInputElement>) {
+    async function readImage(name: string, event: ChangeEvent<HTMLInputElement>) {
         const file = event.target.files?.[0];
         if (!file) return;
-        if (file.size > 1.5 * 1024 * 1024 || !["image/jpeg", "image/png"].includes(file.type)) {
-            setError("Choose a JPG or PNG image of 1.5 MB or smaller.");
-            event.target.value = "";
-            return;
-        }
-
+        event.target.value = "";
         setError("");
         setReadingImages(count => count + 1);
-        const reader = new FileReader();
-        reader.onload = () => updateField(name, String(reader.result));
-        reader.onerror = () => setError("Unable to read the image. Please choose it again.");
-        reader.onloadend = () => setReadingImages(count => count - 1);
-        reader.readAsDataURL(file);
+        try {
+            const photo = await prepareWorkPhoto(file);
+            updateField(name, photo);
+        } catch (error) {
+            setError(error instanceof Error ? error.message : "Unable to prepare the photo.");
+        } finally {
+            setReadingImages(count => count - 1);
+        }
     }
 
     async function submit(event: FormEvent) {
@@ -161,11 +160,14 @@ export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
                 {record?.found === false && <p role="status">No existing work record was found for this pole. Pole details are prefilled below.</p>}
                 {!record && !error && <p role="status">Loading work form…</p>}
 
-                <fieldset disabled={saving || saved} className="work-form-fields">
-                    {sortWorkFormFields(record?.fields ?? []).map(field => (
-                        <label
+                {readingImages > 0 && <p role="status">Preparing photo…</p>}
+                <fieldset disabled={saving || saved || readingImages > 0} className="work-form-fields">
+                    {sortWorkFormFields(record?.fields ?? []).map(field => {
+                        const Container = field.type === "image" ? "div" : "label";
+                        return (
+                        <Container
                             key={field.name}
-                            className={field.name === "cr1da_remarksactiontaken" ? "work-form-remarks" : undefined}
+                            className={field.name === "cr1da_remarksactiontaken" ? "work-form-remarks" : field.type === "image" ? "work-photo-field" : undefined}
                         >
                             <span>{field.required && !isLockedField(field) && <b aria-hidden="true">* </b>}{field.label}</span>
                             <FormField
@@ -176,8 +178,8 @@ export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
                                 onImageChange={event => readImage(field.name, event)}
                             />
                             {fieldErrors[field.name] && <small id={`${field.name}-error`} className="work-form-error" role="alert">{fieldErrors[field.name]}</small>}
-                        </label>
-                    ))}
+                        </Container>
+                    ); })}
                 </fieldset>
 
                 <footer>
@@ -222,20 +224,7 @@ function FormField({ field, value, onChange, onImageChange, error }: FormFieldPr
     }
 
     if (field.type === "image") {
-        return (
-            <>
-                <input
-                    type="file"
-                    accept="image/jpeg,image/png"
-                    required={field.required && !locked && !value}
-                    onChange={onImageChange}
-                />
-                <small>JPG or PNG, up to 1.5 MB. A selected image replaces this photo when saved.</small>
-                {typeof value === "string" && value.startsWith("data:image/") && (
-                    <img src={value} alt={field.label} />
-                )}
-            </>
-        );
+        return <WorkPhotoInput field={field} value={value} onImageChange={onImageChange} />;
     }
 
     if (field.name === "cr1da_remarksactiontaken") {
@@ -268,4 +257,19 @@ function FormField({ field, value, onChange, onImageChange, error }: FormFieldPr
             )}
         />
     );
+}
+
+function WorkPhotoInput({ field, value, onImageChange }: Pick<FormFieldProps, "field" | "value" | "onImageChange">) {
+    const upload = useRef<HTMLInputElement>(null);
+    const camera = useRef<HTMLInputElement>(null);
+    return <>
+        <div className="work-photo-actions" role="group" aria-label={field.label}>
+            <button type="button" onClick={() => upload.current?.click()}>Upload photo</button>
+            <button type="button" onClick={() => camera.current?.click()}>Take photo</button>
+        </div>
+        <input ref={upload} hidden type="file" accept="image/*" aria-label={`Upload photo for ${field.label}`} onChange={onImageChange} />
+        <input ref={camera} hidden type="file" accept="image/*" capture="environment" aria-label={`Take photo for ${field.label}`} onChange={onImageChange} />
+        <small>Choose a photo or use your camera. Photos are resized for upload and saved when you submit or update the form.</small>
+        {typeof value === "string" && value.startsWith("data:image/") && <img src={value} alt={field.label} />}
+    </>;
 }

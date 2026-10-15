@@ -5,7 +5,7 @@
 .work-form-dialog h2 { margin: 0; font-size: 1.4rem; }
 .work-form-dialog header p { margin: 8px 0 20px; }
 .work-form-fields { border: 0; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-.work-form-fields label { display: flex; flex-direction: column; gap: 8px; min-width: 0; font-size: .9rem; font-weight: 650; }
+.work-form-fields label, .work-form-fields .work-photo-field { display: flex; flex-direction: column; gap: 8px; min-width: 0; font-size: .9rem; font-weight: 650; }
 .work-form-fields label b { color: #bd2435; }
 .work-form-fields input, .work-form-fields select, .work-form-fields textarea { width: 100%; box-sizing: border-box; min-height: 42px; padding: 10px; border: 1px solid #a9bbcf; border-radius: 7px; background: white; color: #172b45; font: inherit; }
 .work-form-fields input:read-only { background: #e9eff7; }
@@ -22,3 +22,7 @@
 .work-form-pole-context { display: grid; gap: 14px; margin: 0 0 24px; padding: 16px; border: 1px solid #c2d3e1; border-radius: 10px; background: #f0f2f6; }
 .work-form-pole-context dt { margin-bottom: 4px; color: #46617e; font-size: .8rem; font-weight: 700; }
 .work-form-pole-context dd { margin: 0; color: #102f63; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.work-photo-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.work-photo-actions button { min-height: 44px; flex: 1 1 130px; }
+.work-form-fields input[hidden] { display: none; }
