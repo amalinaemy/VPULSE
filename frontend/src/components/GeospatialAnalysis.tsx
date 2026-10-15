@@ -216,11 +216,15 @@ function MapRiskFilter({ selected, onChange }: { selected: RiskCategory[]; onCha
     const dropdownRef = useRef<HTMLDetailsElement>(null);
     const allSelected = selected.length === categories.length;
     useEffect(() => {
-        const closeOutside = (event: PointerEvent) => {
+        const closeOutside = (event: Event) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) dropdownRef.current.open = false;
         };
         document.addEventListener("pointerdown", closeOutside);
-        return () => document.removeEventListener("pointerdown", closeOutside);
+        document.addEventListener("focusin", closeOutside);
+        return () => {
+            document.removeEventListener("pointerdown", closeOutside);
+            document.removeEventListener("focusin", closeOutside);
+        };
     }, []);
     return <div className="map-risk-filter">
         <span className="map-risk-filter-label">Risk filter</span>
@@ -230,8 +234,6 @@ function MapRiskFilter({ selected, onChange }: { selected: RiskCategory[]; onCha
                 event.currentTarget.open = false;
                 event.currentTarget.querySelector("summary")?.focus();
             }
-        }} onBlur={event => {
-            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) event.currentTarget.open = false;
         }}>
             <summary aria-label={`Risk filter: ${allSelected ? "All risk" : selected.length ? selected.join(", ") : "No risk selected"}`}>
                 {allSelected ? "All risk" : selected.length === 0 ? "No risk selected" : selected.length === 1 ? selected[0] : `${selected.length} risks selected`}

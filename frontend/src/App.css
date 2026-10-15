@@ -3504,3 +3504,10 @@ button {
 .field-general-filters { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .field-general-filters select { width: 100%; min-width: 0; padding: 4px 8px; border: 1px solid #b9cfe2; border-radius: 6px; background: var(--surface, #fff); color: #173863; font: inherit; }
 @media (max-width: 600px) { .field-general-filters { grid-template-columns: 1fr; gap: 0; } }
+
+/* Give touch users full-height targets without closing the menu on checkbox blur. */
+@media (pointer: coarse) {
+    .map-risk-filter summary { min-height: 44px; touch-action: manipulation; }
+    .map-card-tools .map-risk-options label { box-sizing: border-box; min-height: 44px; touch-action: manipulation; }
+    .map-risk-options input { width: 22px; height: 22px; flex-shrink: 0; }
+}
