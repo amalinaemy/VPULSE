@@ -264,8 +264,14 @@ function WorkPhotoInput({ field, value, onImageChange }: Pick<FormFieldProps, "f
     const camera = useRef<HTMLInputElement>(null);
     return <>
         <div className="work-photo-actions" role="group" aria-label={field.label}>
-            <button type="button" onClick={() => upload.current?.click()}>Upload photo</button>
-            <button type="button" onClick={() => camera.current?.click()}>Take photo</button>
+            <button type="button" onClick={() => upload.current?.click()}>
+                <svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 16V3m-5 5 5-5 5 5M4 15v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5" /></svg>
+                Upload photo
+            </button>
+            <button type="button" onClick={() => camera.current?.click()}>
+                <svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 4 7 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2-3z" /><circle cx="12" cy="13" r="4" /></svg>
+                Take photo
+            </button>
         </div>
         <input ref={upload} hidden type="file" accept="image/*" aria-label={`Upload photo for ${field.label}`} onChange={onImageChange} />
         <input ref={camera} hidden type="file" accept="image/*" capture="environment" aria-label={`Take photo for ${field.label}`} onChange={onImageChange} />
