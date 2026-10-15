@@ -3126,7 +3126,16 @@ button {
     }
 
     .critical-pending-card {
-        max-height: none;
+        max-height: 414px;
+    }
+
+    .critical-pending-card > ol {
+        max-height: 300px;
+        max-height: min(300px, 45svh);
+        flex: 0 1 auto;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-gutter: stable;
     }
 }
 
