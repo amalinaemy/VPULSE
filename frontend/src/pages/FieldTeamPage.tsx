@@ -194,7 +194,7 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
         <p className="field-feedback-notice" role="status">
             {statusesLoading ? "Loading trimming summary…" : statusesFailed
                 ? "Trimming statuses are unavailable."
-                : "Trimming summary loaded. Poles without an inspection record are Pending; unrecognized choices are Unknown."}
+                : "Trimming summary loaded. Poles without an inspection record are Pending."}
         </p>
         {feedbackError &&
             <div className="loading" role="alert">
