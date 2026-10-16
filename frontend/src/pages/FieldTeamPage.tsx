@@ -21,7 +21,7 @@ export interface FieldTeamPageProps {
 }
 
 type TrimmingStatus = "Completed" | "Not Started" | "In Progress" | "Pending";
-type TrimmingFilter = "All" | TrimmingStatus | "Unknown";
+type TrimmingFilter = "All" | TrimmingStatus;
 type RiskFilter = "All" | "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
 const pageSize = 10;
 
@@ -180,7 +180,6 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
                     <option value="Not Started">Not Started</option>
                     <option value="In Progress">In Progress</option>
                     <option value="Pending">Pending</option>
-                    <option value="Unknown">Unknown</option>
                 </select>
             </fieldset>
         </div>
