@@ -422,3 +422,49 @@ export async function saveWorkForm(
   }
 
 }
+
+
+export interface WorkSummary {
+  poleId: string;
+  trimmingWork: string | number | null;
+  modifiedOn: string | null;
+}
+
+export async function getWorkSummary(options: { fresh?: boolean } = {}): Promise<WorkSummary[]> {
+  // The server must honor fresh=1 to bypass any application-level summary cache.
+  const url = options.fresh ? `/api/work-summary?fresh=1&_=${Date.now()}` : "/api/work-summary";
+  const response = await fetch(url, options.fresh ? { cache: "no-store" } : undefined);
+
+  if (!response.ok) {
+    throw new Error(
+      `Unable to load trimming statuses: ${response.status}`
+    );
+  }
+
+  const data: unknown = await response.json();
+
+  if (!Array.isArray(data)) {
+    throw new Error("Invalid work summary response.");
+  }
+
+  return data as WorkSummary[];
+}
+
+
+
+// The flow sorts modifiedon descending, so the first row for a pole is newest.
+export function workSummaryLookup(records: WorkSummary[]): Map<string, WorkFeedback> {
+  const lookup = new Map<string, WorkFeedback>();
+  for (const record of records) {
+    const key = String(record.poleId ?? "").trim().toUpperCase();
+    if (!key || lookup.has(key)) continue;
+    const value = record.trimmingWork;
+    const choice = workFormChoices.crf11_trimmingwork.find(option => String(option.value) === String(value));
+    lookup.set(key, {
+      poleId: key,
+      trimmingWork: choice?.label ?? (typeof value === "string" ? value : null),
+      modifiedOn: record.modifiedOn,
+    });
+  }
+  return lookup;
+}

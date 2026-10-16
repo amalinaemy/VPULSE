@@ -62,3 +62,60 @@ test('flow timeouts return 504 without encouraging retries', async () => {
     assert.equal(res.code,504);assert.equal(res.body.retryable,false);
   } finally {globalThis.fetch=original;if(old===undefined)delete process.env.POWER_AUTOMATE_GET_WORK_FORM_URL;else process.env.POWER_AUTOMATE_GET_WORK_FORM_URL=old;}
 });
+
+test('summary loads in one request and keeps the first record per normalized pole ID', async () => {
+  const api = await apiModule();
+  const original = globalThis.fetch;
+  const requests: string[] = [];
+  try {
+    globalThis.fetch = async url => {
+      requests.push(String(url));
+      return Response.json([
+        { poleId: ' pole-a ', trimmingWork: 0, modifiedOn: '2026-10-16T00:00:00Z' },
+        { poleId: 'POLE-A', trimmingWork: 1, modifiedOn: '2026-10-15T00:00:00Z' },
+        { poleId: 'pole-b', trimmingWork: 1, modifiedOn: null },
+        { poleId: 'pole-c', trimmingWork: '2', modifiedOn: null },
+        { poleId: 'pole-d', trimmingWork: 'Completed', modifiedOn: null },
+        { poleId: 'pole-e', trimmingWork: null, modifiedOn: null },
+        { poleId: ' ', trimmingWork: 0, modifiedOn: null },
+      ]);
+    };
+    const lookup = api.workSummaryLookup(await api.getWorkSummary());
+    assert.deepEqual(requests, ['/api/work-summary']);
+    assert.equal(lookup.size, 5);
+    assert.equal(lookup.get('POLE-A').trimmingWork, 'Completed');
+    assert.equal(lookup.get('POLE-A').modifiedOn, '2026-10-16T00:00:00Z');
+    assert.equal(lookup.get('POLE-B').trimmingWork, 'In Progress');
+    assert.equal(lookup.get('POLE-C').trimmingWork, 'Not Started');
+    assert.equal(lookup.get('POLE-D').trimmingWork, 'Completed');
+    assert.equal(lookup.get('POLE-E').trimmingWork, null);
+  } finally { globalThis.fetch = original; }
+});
+
+test('summary failures and invalid payloads reject instead of reporting loaded statuses', async () => {
+  const api = await apiModule();
+  const original = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => Response.json({}, { status: 503 });
+    await assert.rejects(api.getWorkSummary(), /503/);
+    globalThis.fetch = async () => Response.json({ value: [] });
+    await assert.rejects(api.getWorkSummary(), /Invalid work summary response/);
+  } finally { globalThis.fetch = original; }
+});
+
+test('post-save summary refresh requests fresh data once without fetching full forms', async () => {
+  const api = await apiModule();
+  const original = globalThis.fetch;
+  const requests: { url: string; cache: RequestCache | undefined }[] = [];
+  try {
+    globalThis.fetch = async (url, options) => {
+      requests.push({ url: String(url), cache: options?.cache });
+      return Response.json([{ poleId: 'A', trimmingWork: 0, modifiedOn: null }]);
+    };
+    const summary = await api.getWorkSummary({ fresh: true });
+    assert.equal(requests.length, 1);
+    assert.match(requests[0].url, /^\/api\/work-summary\?fresh=1&_=\d+$/);
+    assert.equal(requests[0].cache, 'no-store');
+    assert.equal(summary[0].poleId, 'A');
+  } finally { globalThis.fetch = original; }
+});

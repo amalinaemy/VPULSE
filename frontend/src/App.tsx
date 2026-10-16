@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { AppHeader } from "./components/AppHeader";
 import { Sidebar } from "./components/Sidebar";
@@ -12,7 +12,9 @@ import { WorkForm } from "./pages/WorkForm";
 
 import {
     getPoles,
-    getWorkFeedback,
+    getWorkSummary,
+    workSummaryLookup,
+    type WorkSummary,
     subscribeWorkFeedback,
     type Pole,
     type WorkFeedback,
@@ -56,8 +58,21 @@ function App() {
     const [feedbackRefresh, setFeedbackRefresh] = useState(0);
     const [feedbackLoading, setFeedbackLoading] = useState(true);
     const [feedbackError, setFeedbackError] = useState<string | null>(null);
-    const [workFeedback, setWorkFeedback] =
+    const [formFeedback, setFormFeedback] =
         useState<WorkFeedback[]>([]);
+
+    const [workSummaries, setWorkSummaries] = useState<WorkSummary[]>([]);
+    const workSummaryByPoleId = useMemo(() => workSummaryLookup(workSummaries), [workSummaries]);
+    const workFeedback = useMemo(() => {
+        const lookup = new Map(workSummaryByPoleId);
+        for (const record of formFeedback) {
+            const key = String(record.poleId ?? "").trim().toUpperCase();
+            const summary = lookup.get(key);
+            if (key && (!summary || !summary.modifiedOn || !record.modifiedOn ||
+                Date.parse(record.modifiedOn) >= Date.parse(summary.modifiedOn))) lookup.set(key, record);
+        }
+        return [...lookup.values()];
+    }, [workSummaryByPoleId, formFeedback]);
 
     /*
     |--------------------------------------------------------------------------
@@ -105,27 +120,29 @@ function App() {
     }, []);
 
     useEffect(() => subscribeWorkFeedback(feedback => {
-        setWorkFeedback(current => [...current.filter(item => item.poleId?.trim().toLowerCase() !== feedback.poleId?.trim().toLowerCase()), feedback]);
+        setFormFeedback(current => [...current.filter(item => item.poleId?.trim().toLowerCase() !== feedback.poleId?.trim().toLowerCase()), feedback]);
     }), []);
 
-    // Load feedback for the active view; form access is independent of this request.
+    // One summary request for all dashboards; forms still load individually on demand.
     useEffect(() => {
-        if (isLoadingPoles || polesError || !["field", "executive", "engineer"].includes(activeView)) return;
-        const controller = new AbortController();
-        let active = true;
+        let cancelled = false;
         setFeedbackLoading(true);
         setFeedbackError(null);
-        getWorkFeedback(poles.flatMap(pole => pole.poleId ? [pole.poleId] : []), controller.signal, feedback => {
-            if (active) setWorkFeedback(current => [...current.filter(item => item.poleId?.trim().toLowerCase() !== feedback.poleId?.trim().toLowerCase()), feedback]);
-        })
+        getWorkSummary({ fresh: feedbackRefresh > 0 })
+            .then(data => {
+                if (!cancelled) setWorkSummaries(data);
+            })
             .catch(error => {
-                if (active) setFeedbackError(error instanceof Error ? error.message : "Unable to load work feedback.");
+                if (!cancelled) {
+                    console.error(error);
+                    setFeedbackError("Unable to load trimming statuses.");
+                }
             })
             .finally(() => {
-                if (active) setFeedbackLoading(false);
+                if (!cancelled) setFeedbackLoading(false);
             });
-        return () => { active = false; controller.abort(); };
-    }, [activeView, poles, isLoadingPoles, polesError, feedbackRefresh]);
+        return () => { cancelled = true; };
+    }, [feedbackRefresh]);
 
     /*
     |--------------------------------------------------------------------------
@@ -220,7 +237,7 @@ function App() {
                         workFeedback={workFeedback}
                         isLoading={isLoadingPoles}
                         error={polesError}
-                        onWorkFormSaved={async () => { /* Saved status is published directly to subscribers. */ }}
+                        onWorkFormSaved={async () => { setFeedbackRefresh(value => value + 1); }}
                     />
                 );
 

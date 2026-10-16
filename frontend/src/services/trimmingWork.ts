@@ -16,3 +16,27 @@ export function poleTrimmingStatus(poleId: string | null, feedback: WorkFeedback
     const match = id ? feedback.find((item) => item.poleId?.trim().toLowerCase() === id) : undefined;
     return match ? trimmingWorkStatus(match.trimmingWork ?? undefined) : "Unavailable";
 }
+
+
+// These are the choice values already recorded in the form configuration.
+// No numeric Pending choice has been confirmed; missing records are handled separately.
+export function getTrimmingStatus(value: string | number | null | undefined): TrimmingStatus | null {
+    if (value == null || String(value).trim() === "") return null;
+    const normalized = String(value).trim().toLowerCase();
+    if (normalized === "0" || normalized === "completed") return "Completed";
+    if (normalized === "1" || normalized === "in progress") return "In Progress";
+    if (normalized === "2" || normalized === "not started") return "Not Started";
+    if (normalized === "pending") return "Pending";
+    return null;
+}
+
+export type DashboardTrimmingStatus = TrimmingStatus | "Unknown" | "Loading" | "Unavailable";
+
+export function dashboardTrimmingStatus(
+    hasRecord: boolean, value: string | number | null | undefined,
+    loading: boolean, failed: boolean,
+): DashboardTrimmingStatus {
+    if (loading) return "Loading";
+    if (failed) return "Unavailable";
+    return hasRecord ? getTrimmingStatus(value) ?? "Unknown" : "Pending";
+}

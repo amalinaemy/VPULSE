@@ -54,9 +54,15 @@ export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
     }, []);
 
     useEffect(() => {
+        const poleId = pole.poleId?.trim();
+        if (!poleId) {
+            setError("A Pole ID is required to load the form.");
+            return;
+        }
         let active = true;
         setError("");
-        getWorkForm(pole.poleId!)
+        setRecord(null);
+        getWorkForm(poleId)
             .then((form) => {
                 if (!active) return;
                 if (!form.fields.length) {
@@ -118,12 +124,9 @@ export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
             const changed = editableWorkFormValues(record, values);
             await saveWorkForm(pole.poleId!, record.id, record.version, changed);
             setSaved(true);
-            try {
-                await onSaved();
-                onClose();
-            } catch {
-                setError("Form saved. Status refresh failed; refresh the page to see the latest status.");
-            }
+            onClose();
+            // App refreshes the summary once and displays any refresh error on the dashboard.
+            await onSaved();
         } catch (error) {
             setError(error instanceof Error ? error.message : "Unable to save the form.");
         } finally {

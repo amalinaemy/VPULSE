@@ -97,3 +97,20 @@ In the Get Poles Power Automate flow:
 
 That example displays as 24 Sept 2026, 4:52 pm in Malaysia. If all returned
 records omit the timestamp, the badge displays “Last Refresh unavailable”.
+
+### Bulk trimming summary
+
+Set `POWER_AUTOMATE_GET_WORK_SUMMARY_URL` in Vercel Production to the summary
+flow's HTTP trigger URL. The endpoint POSTs `{}` and expects an array (or a
+`value` array) containing `poleId`, `trimmingWork`, and `modifiedOn`. Raw Dataverse
+columns `cr1da_feederpolesection`, `crf11_trimmingwork`, and `modifiedon` are also
+accepted. Enable flow pagination to return every inspection record; order by
+`modifiedon desc`. The API sorts dated records newest first as well.
+
+Summary responses use `Cache-Control: no-store` and no application cache.
+After saving, React requests the summary once using `fresh=1` and browser
+`cache: no-store`. Full forms load only when opened. Missing inspection records
+become Pending only after both candidates and the summary load successfully.
+Unknown saved choice values remain Unknown. The configured numeric values are
+0 Completed, 1 In Progress, and 2 Not Started; a numeric Pending choice has not
+been confirmed.

@@ -18,6 +18,9 @@
     },
     "api/work-feedback.ts": {
       "maxDuration": 60
+    },
+    "api/work-summary.ts": {
+      "maxDuration": 60
     }
   }
 }

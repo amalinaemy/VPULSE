@@ -3,7 +3,7 @@ import { useStateFilter } from "../services/useStateFilter";
 import { LineTypeFilter } from "../components/LineTypeFilter";
 import { matchesLineType, type LineTypeFilterValue } from "../services/lineType";
 import { WorkFormModal } from "../components/WorkFormModal";
-import { trimmingWorkStatus } from "../services/trimmingWork";
+import { dashboardTrimmingStatus, type DashboardTrimmingStatus } from "../services/trimmingWork";
 import { useEffect, useMemo, useState } from "react";
 import { GeospatialAnalysis } from "../components/GeospatialAnalysis";
 import type { Pole, WorkFeedback } from "../services/api";
@@ -21,7 +21,7 @@ export interface FieldTeamPageProps {
 }
 
 type TrimmingStatus = "Completed" | "Not Started" | "In Progress" | "Pending";
-type TrimmingFilter = "All" | TrimmingStatus;
+type TrimmingFilter = "All" | TrimmingStatus | "Unknown";
 type RiskFilter = "All" | "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
 const pageSize = 10;
 
@@ -42,11 +42,17 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
         });
         return feedbackByPole;
     }, [workFeedback]);
+    const statusesLoading = isLoading || feedbackLoading;
+    const statusesFailed = Boolean(error || feedbackError);
+    const statusesReady = !statusesLoading && !statusesFailed;
+    const statusByPole = useMemo(() => new Map(allPoles.map(pole => {
+        const key = normalizePoleId(pole.poleId);
+        return [key, dashboardTrimmingStatus(trimmingWorkByPole.has(key), trimmingWorkByPole.get(key), statusesLoading, statusesFailed)];
+    })), [allPoles, trimmingWorkByPole, statusesLoading, statusesFailed]);
     const poles = useMemo(() => statePoles.filter(pole =>
         matchesLineType(pole.lineType, lineType)
-        && (trimmingFilter === "All" || (trimmingWorkByPole.has(normalizePoleId(pole.poleId))
-            && trimmingWorkStatus(trimmingWorkByPole.get(normalizePoleId(pole.poleId))) === trimmingFilter))
-    ), [statePoles, lineType, trimmingFilter, trimmingWorkByPole]);
+        && (trimmingFilter === "All" || (statusByPole.get(normalizePoleId(pole.poleId)) === trimmingFilter))
+    ), [statePoles, lineType, trimmingFilter, statusByPole]);
     const substations = useMemo(() => [...new Set(poles.map(workPackSubstation))].sort((a, b) => a.localeCompare(b)), [poles]);
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
@@ -55,28 +61,27 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
     const priorityPoles = useMemo(() => [...poles]
         .sort((first, second) => riskScore(second) - riskScore(first)), [poles]);
     const statusCounts = useMemo(() => {
-        const counts: Record<TrimmingStatus, number> = {
+        const counts: Record<TrimmingStatus | "Unknown", number> = {
             "Completed": 0,
             "In Progress": 0,
             "Not Started": 0,
             "Pending": 0,
+            "Unknown": 0,
         };
         priorityPoles.forEach((pole) => {
-            if (!trimmingWorkByPole.has(normalizePoleId(pole.poleId))) return;
-            const trimmingWork = trimmingWorkByPole.get(normalizePoleId(pole.poleId));
-            counts[trimmingWorkStatus(trimmingWork)] += 1;
+            const status = statusByPole.get(normalizePoleId(pole.poleId));
+            if (status && status !== "Loading" && status !== "Unavailable") counts[status] += 1;
         });
         return counts;
-    }, [priorityPoles, trimmingWorkByPole]);
+    }, [priorityPoles, statusByPole]);
 
-    const loadedStatusCount = Object.values(statusCounts).reduce((sum, count) => sum + count, 0);
+
 
     //Filter poles & Pending Poles without work order
     const criticalPendingPoles = useMemo(() => priorityPoles.filter((pole) =>
-        trimmingWorkByPole.has(normalizePoleId(pole.poleId))
-        && riskLevel(pole) === "CRITICAL"
-        && trimmingWorkStatus(trimmingWorkByPole.get(normalizePoleId(pole.poleId))) === "Pending"
-    ), [priorityPoles, trimmingWorkByPole]);
+        riskLevel(pole) === "CRITICAL"
+        && statusByPole.get(normalizePoleId(pole.poleId)) === "Pending"
+    ), [priorityPoles, statusByPole]);
     const filteredPoles = useMemo(() => priorityPoles.filter((pole) => {
         if (substationFilter && workPackSubstation(pole) !== substationFilter) return false;
         const query = search.trim().toLowerCase();
@@ -140,7 +145,7 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
             "Risk Score": pole.finalAiRiskScore ?? "",
             "Land Cover Type": pole.landCoverType ?? "",
             "Recommended Action": pole.action ?? "Field inspection required",
-            "Trimming Work": trimmingWorkByPole.has(normalizePoleId(pole.poleId)) ? trimmingWorkStatus(trimmingWorkByPole.get(normalizePoleId(pole.poleId))) : "Unavailable",
+            "Trimming Work": statusByPole.get(normalizePoleId(pole.poleId)) ?? "Unavailable",
         }));
         const worksheet = XLSX.utils.json_to_sheet(rows);
         worksheet["!cols"] = [
@@ -175,6 +180,7 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
                     <option value="Not Started">Not Started</option>
                     <option value="In Progress">In Progress</option>
                     <option value="Pending">Pending</option>
+                    <option value="Unknown">Unknown</option>
                 </select>
             </fieldset>
         </div>
@@ -186,8 +192,9 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
             setFormPole(null);
         }} />
         <p className="field-feedback-notice" role="status">
-            {allPoles.filter(pole => trimmingWorkByPole.has(normalizePoleId(pole.poleId))).length} of {allPoles.length} trimming statuses loaded.
-            {feedbackLoading ? " Loading remaining statuses…" : ""} Unloaded statuses are excluded from status counts and trimming filters.
+            {statusesLoading ? "Loading trimming summary…" : statusesFailed
+                ? "Trimming statuses are unavailable."
+                : "Trimming summary loaded. Poles without an inspection record are Pending; unrecognized choices are Unknown."}
         </p>
         {feedbackError &&
             <div className="loading" role="alert">
@@ -196,11 +203,12 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
             </div>}
         {!feedbackLoading && !feedbackError && <button type="button" className="export-work-orders-button" onClick={onRefreshFeedback}>Refresh trimming statuses</button>}
         <section className="metrics field-team-metrics">
-            <FieldMetric label="Today Work Pack" value={priorityPoles.length} note="All risk categories" />
-            <FieldMetric label="Completed" value={loadedStatusCount ? statusCounts.Completed : "—"} note="Trimming work completed" accent="green" />
-            <FieldMetric label="In Progress" value={loadedStatusCount ? statusCounts["In Progress"] : "—"} note="Work currently underway" accent="orange" />
-            <FieldMetric label="Not Started" value={loadedStatusCount ? statusCounts["Not Started"] : "—"} note="Work has not started" accent="red" />
-            <FieldMetric label="Pending" value={loadedStatusCount ? statusCounts.Pending : "—"} note="Need site action" />
+            <FieldMetric label="Today Work Pack" value={statusesReady ? priorityPoles.length : "—"} note="All risk categories" />
+            <FieldMetric label="Completed" value={statusesReady ? statusCounts.Completed : "—"} note="Trimming work completed" accent="green" />
+            <FieldMetric label="In Progress" value={statusesReady ? statusCounts["In Progress"] : "—"} note="Work currently underway" accent="orange" />
+            <FieldMetric label="Not Started" value={statusesReady ? statusCounts["Not Started"] : "—"} note="Work has not started" accent="red" />
+            <FieldMetric label="Pending" value={statusesReady ? statusCounts.Pending : "—"} note="Need site action" />
+            <FieldMetric label="Unknown" value={statusesReady ? statusCounts.Unknown : "—"} note="Unrecognized or empty saved status" />
         </section>
         {isLoading ?
         <p className="loading">Loading field work pack…</p>
@@ -216,7 +224,7 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
                         </button>
                     </div>
                     {criticalPendingPoles.length === 0 ? <span className="no-critical-poles">
-                        No Critical poles have pending work.</span>
+                        {statusesLoading ? "Loading pending work…" : statusesFailed ? "Pending work is unavailable." : "No Critical poles have pending work."}</span>
                             : <ol>{criticalPendingPoles.map((pole, index) => <li key={`${pole.poleId ?? "pole"}-${index}`}>
                         <button className="critical-pending-link" type="button" onClick={() => openPendingPole(pole)}>
                             <span><b>{index + 1}. {pole.poleId ?? "Unnamed pole"}</b><small>{pole.streetName ?? "Street not recorded"}</small></span>
@@ -258,12 +266,12 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
                     </div></div>
                 {filteredPoles.length === 0 ? <p className="loading">No poles match the selected filters.</p> : <><div className="field-task-list">{pagePoles.map((pole, index) => {
                     const category = riskLevel(pole);
-                    const trimmingWork = trimmingWorkStatus(trimmingWorkByPole.get(normalizePoleId(pole.poleId)));
+                    const trimmingWork = statusByPole.get(normalizePoleId(pole.poleId)) ?? "Unavailable";
                     return <article className="field-task" id={fieldTaskId(pole.poleId)} tabIndex={-1} key={`${pole.poleId ?? "pole"}-${index}`}>
                         <div className="field-task-rank" aria-label={`Priority rank ${priorityRankByPole.get(pole)}`}>{priorityRankByPole.get(pole)}</div>
                         <div className="field-task-info"><h4>{pole.poleId ?? "Unnamed pole"}</h4><p>{pole.streetName ?? "Street not recorded"}</p>
                             <small>{pole.action ?? "Field inspection required"}</small>
-                            <span className={`trimming-status ${trimmingStatusClass(trimmingWork)}`}>Trimming work: {trimmingWorkByPole.has(normalizePoleId(pole.poleId)) ? trimmingWork : feedbackLoading ? "Loading" : "Unavailable"}</span>
+                            <span className={`trimming-status ${trimmingStatusClass(trimmingWork)}`}>Trimming work: {trimmingWork}</span>
                         </div>
                         <div className="field-task-statuses">
                             <strong className={`risk-${category.toLowerCase()}`}>{category} {pole.finalAiRiskScore ?? "—"}</strong>
@@ -297,13 +305,13 @@ function FieldMetric({ label, value, note, accent = "blue" }: { label: string; v
 }
 
 function riskScore(pole: Pole) { return Number(pole.finalAiRiskScore ?? -1); }
-function normalizePoleId(poleId: string | null) { return poleId?.trim().toLowerCase() ?? ""; }
-function fieldTaskId(poleId: string | null) { return `field-task-${normalizePoleId(poleId).replace(/[^a-z0-9_-]/g, "-")}`; }
-function trimmingStatusClass(status: TrimmingStatus) {
+function normalizePoleId(poleId: unknown) { return String(poleId ?? "").trim().toUpperCase(); }
+function fieldTaskId(poleId: string | null) { return `field-task-${normalizePoleId(poleId).replace(/[^A-Z0-9_-]/g, "-")}`; }
+function trimmingStatusClass(status: DashboardTrimmingStatus) {
     if (status === "Completed") return "status-completed";
     if (status === "In Progress") return "status-in-progress";
     if (status === "Not Started") return "status-not-started";
-    return "status-pending";
+    return status === "Pending" ? "status-pending" : "status-unknown";
 }
 function riskLevel(pole: Pole) {
     const category = pole.finalAiRiskCategory?.trim().toUpperCase();
