@@ -208,7 +208,6 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
             <FieldMetric label="In Progress" value={statusesReady ? statusCounts["In Progress"] : "—"} note="Work currently underway" accent="orange" />
             <FieldMetric label="Not Started" value={statusesReady ? statusCounts["Not Started"] : "—"} note="Work has not started" accent="red" />
             <FieldMetric label="Pending" value={statusesReady ? statusCounts.Pending : "—"} note="Need site action" />
-            <FieldMetric label="Unknown" value={statusesReady ? statusCounts.Unknown : "—"} note="Unrecognized or empty saved status" />
         </section>
         {isLoading ?
         <p className="loading">Loading field work pack…</p>
