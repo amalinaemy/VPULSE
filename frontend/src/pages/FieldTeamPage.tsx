@@ -25,6 +25,8 @@ export function FieldTeamPage({ poles, workFeedback, isLoading, error, feedbackL
     const [formPole, setFormPole] = useState<Pole | null>(null);
     const [trimmingFilter, setTrimmingFilter] = useState<TrimmingFilter>("All");
     const [riskFilter, setRiskFilter] = useState<RiskFilter>("All");
+    const [landCoverFilter, setLandCoverFilter] = useState("");
+    const landCoverTypes = useMemo(() => [...new Set(poles.map(workPackLandCover))].sort((a, b) => a.localeCompare(b)), [poles]);
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
     const [targetPoleId, setTargetPoleId] = useState<string | null>(null);
@@ -62,20 +64,21 @@ export function FieldTeamPage({ poles, workFeedback, isLoading, error, feedbackL
         && trimmingWorkStatus(trimmingWorkByPole.get(normalizePoleId(pole.poleId))) === "Pending"
     ), [priorityPoles, trimmingWorkByPole]);
     const filteredPoles = useMemo(() => priorityPoles.filter((pole) => {
+        if (landCoverFilter && workPackLandCover(pole) !== landCoverFilter) return false;
         const query = search.trim().toLowerCase();
         if (query && ![pole.poleId, pole.feederId, pole.streetName, pole.substation]
             .some((value) => (value ?? "").toLowerCase().includes(query))) return false;
         if (riskFilter !== "All" && riskLevel(pole) !== riskFilter) return false;
         if (trimmingFilter === "All") return true;
         return trimmingWorkStatus(trimmingWorkByPole.get(normalizePoleId(pole.poleId))) === trimmingFilter;
-    }), [priorityPoles, trimmingWorkByPole, trimmingFilter, riskFilter, search]);
+    }), [priorityPoles, trimmingWorkByPole, trimmingFilter, riskFilter, landCoverFilter, search]);
     const priorityRankByPole = useMemo(() => new Map(priorityPoles.map((pole, index) => [pole, index + 1])), [priorityPoles]);
     const totalPages = Math.max(1, Math.ceil(filteredPoles.length / pageSize));
     const pagePoles = filteredPoles.slice((page - 1) * pageSize, page * pageSize);
 
-    const hasActiveFilters = search.trim() !== "" || riskFilter !== "All" || trimmingFilter !== "All";
+    const hasActiveFilters = landCoverFilter !== "" || search.trim() !== "" || riskFilter !== "All" || trimmingFilter !== "All";
 
-    useEffect(() => setPage(1), [riskFilter, trimmingFilter, search]);
+    useEffect(() => setPage(1), [riskFilter, trimmingFilter, landCoverFilter, search]);
     useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
     useEffect(() => {
         if (!targetPoleId) return;
@@ -87,6 +90,7 @@ export function FieldTeamPage({ poles, workFeedback, isLoading, error, feedbackL
     }, [targetPoleId, pagePoles]);
 
     function resetFilters() {
+        setLandCoverFilter("");
         setSearch("");
         setRiskFilter("All");
         setTrimmingFilter("All");
@@ -96,6 +100,7 @@ export function FieldTeamPage({ poles, workFeedback, isLoading, error, feedbackL
     function openPendingPole(pole: Pole) {
         const poleId = pole.poleId?.trim();
         if (!poleId) return;
+        setLandCoverFilter("");
         setSearch(poleId);
         setRiskFilter("CRITICAL");
         setTrimmingFilter("Pending");
@@ -200,6 +205,12 @@ export function FieldTeamPage({ poles, workFeedback, isLoading, error, feedbackL
                                 <option value="Pending">Pending</option>
                             </select>
                         </label>
+                        <label>Land cover type
+                            <select value={landCoverFilter} onChange={event => setLandCoverFilter(event.target.value)}>
+                                <option value="">All land cover types</option>
+                                {landCoverTypes.map(name => <option key={name} value={name}>{name}</option>)}
+                            </select>
+                        </label>
                         <button className="reset-filters-button" type="button" onClick={resetFilters} disabled={!hasActiveFilters} aria-label="Reset filters" title="Reset filters">
                             <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18"><path d="M4 4v6h6M5.6 15a7 7 0 1 0 .7-7.9L4 10" /></svg>
                         </button>
@@ -244,6 +255,7 @@ function FieldMetric({ label, value, note, accent = "blue" }: { label: string; v
     return <article className="metric"><span>{label}</span><strong className={accent}>{value}</strong><p>{note}</p></article>;
 }
 
+function workPackLandCover(pole: Pole) { return pole.landCoverType?.trim() || "Unknown"; }
 function riskScore(pole: Pole) { return Number(pole.finalAiRiskScore ?? -1); }
 function normalizePoleId(poleId: string | null) { return poleId?.trim().toLowerCase() ?? ""; }
 function fieldTaskId(poleId: string | null) { return `field-task-${normalizePoleId(poleId).replace(/[^a-z0-9_-]/g, "-")}`; }

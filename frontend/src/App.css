@@ -2930,6 +2930,7 @@ button {
 }
 
 .field-work-pack .field-work-pack-tools {
+    flex-wrap: wrap;
     justify-content: flex-start;
     margin-top: 12px;
 }
