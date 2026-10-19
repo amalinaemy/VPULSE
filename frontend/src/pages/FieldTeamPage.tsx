@@ -53,10 +53,13 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
         const key = normalizePoleId(pole.poleId);
         return [key, dashboardTrimmingStatus(trimmingWorkByPole.has(key), trimmingWorkByPole.get(key), statusesLoading, statusesFailed)];
     })), [allPoles, trimmingWorkByPole, statusesLoading, statusesFailed]);
-    const poles = useMemo(() => statePoles.filter(pole =>
+    // Summary scope follows State and Line Type, independently of the trimming filter.
+    const summaryPoles = useMemo(() => statePoles.filter(pole =>
         matchesLineType(pole.lineType, lineType)
-        && (trimmingFilter === "All" || (statusByPole.get(normalizePoleId(pole.poleId)) === trimmingFilter))
-    ), [statePoles, lineType, trimmingFilter, statusByPole]);
+    ), [statePoles, lineType]);
+    const poles = useMemo(() => summaryPoles.filter(pole =>
+        trimmingFilter === "All" || statusByPole.get(normalizePoleId(pole.poleId)) === trimmingFilter
+    ), [summaryPoles, trimmingFilter, statusByPole]);
     const stations = useMemo(() => [...new Set(poles.map(workPackStation))].sort((a, b) => a.localeCompare(b)), [poles]);
     const substations = useMemo(() => [...new Set(poles.map(workPackSubstation))].sort((a, b) => a.localeCompare(b)), [poles]);
     const landCoverTypes = useMemo(() => [...new Set(poles.map(workPackLandCover))].sort((a, b) => a.localeCompare(b)), [poles]);
@@ -74,12 +77,12 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
             "Pending": 0,
             "Unknown": 0,
         };
-        priorityPoles.forEach((pole) => {
+        summaryPoles.forEach((pole) => {
             const status = statusByPole.get(normalizePoleId(pole.poleId));
             if (status && status !== "Loading" && status !== "Unavailable") counts[status] += 1;
         });
         return counts;
-    }, [priorityPoles, statusByPole]);
+    }, [summaryPoles, statusByPole]);
 
 
 
@@ -218,7 +221,7 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
             </div>}
         {!feedbackLoading && !feedbackError && <button type="button" className="export-work-orders-button" onClick={onRefreshFeedback}>Refresh trimming statuses</button>}
         <section className="metrics field-team-metrics">
-            <FieldMetric label="Today Work Pack" value={statusesReady ? priorityPoles.length : "—"} note="All risk categories" />
+            <FieldMetric label="Today Work Pack" value={statusesReady ? summaryPoles.length : "—"} note="All risk categories" />
             <FieldMetric label="Completed" value={statusesReady ? statusCounts.Completed : "—"} note="Trimming work completed" accent="green" />
             <FieldMetric label="N/A" value={statusesReady ? statusCounts["N/A"] : "—"} note="Trimming not applicable" accent="orange" />
             <FieldMetric label="Not Started" value={statusesReady ? statusCounts["Not Started"] : "—"} note="Work has not started" accent="red" />
