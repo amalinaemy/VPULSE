@@ -34,6 +34,7 @@ interface FormFieldProps {
 
 export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
     const dialog = useRef<HTMLDialogElement>(null);
+    const [showTrimmingInfo, setShowTrimmingInfo] = useState(false);
     const [showAiInfo, setShowAiInfo] = useState(false);
     const [loadAttempt, setLoadAttempt] = useState(0);
     const [record, setRecord] = useState<WorkFormRecord | null>(null);
@@ -168,11 +169,12 @@ export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
                 <fieldset disabled={saving || saved || readingImages > 0} className="work-form-fields">
                     {sortWorkFormFields(record?.fields ?? []).map(field => {
                         const isAiField = field.name === "cr1da_aiconfirmedenroachment";
-                        const Container = field.type === "image" || isAiField ? "div" : "label";
+                        const isTrimmingField = field.name === "crf11_trimmingwork";
+                        const Container = field.type === "image" || isAiField || isTrimmingField ? "div" : "label";
                         return (
                         <Container
                             key={field.name}
-                            className={isAiField ? "work-ai-field" : field.name === "cr1da_remarksactiontaken" ? "work-form-remarks" : field.type === "image" ? "work-photo-field" : undefined}
+                            className={isAiField || isTrimmingField ? "work-ai-field" : field.name === "cr1da_remarksactiontaken" ? "work-form-remarks" : field.type === "image" ? "work-photo-field" : undefined}
                         >
                             {isAiField ? <>
                                 <div className="work-ai-heading">
@@ -192,6 +194,17 @@ export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
                                         <li>vegetation out of 30 m radius</li>
                                         <li>Land Cover Type, Risk Category, Recommended Action : All are <strong>incorrect.</strong></li>
                                     </ul>
+                                </div>}
+                            </> : isTrimmingField ? <>
+                                <div className="work-ai-heading">
+                                    <label htmlFor={field.name}>{field.required && <b aria-hidden="true">* </b>}{field.label}</label>
+                                    <button type="button" className="work-ai-info-button" aria-label="Trimming work guidance"
+                                        aria-expanded={showTrimmingInfo} aria-controls="work-trimming-guidance" onClick={() => setShowTrimmingInfo(value => !value)}>i</button>
+                                </div>
+                                {showTrimmingInfo && <div id="work-trimming-guidance" className="work-ai-guidance">
+                                    <p><strong>Completed:</strong> Trimming completed</p>
+                                    <p><strong>Not Started:</strong> Inspection completed, trimming not yet carried out</p>
+                                    <p><strong>N/A:</strong> Trimming Not Required</p>
                                 </div>}
                             </> : <span>{field.required && !isLockedField(field) && <b aria-hidden="true">* </b>}{field.label}</span>}
                             <FormField
