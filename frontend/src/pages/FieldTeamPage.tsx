@@ -31,6 +31,7 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
     const [formPole, setFormPole] = useState<Pole | null>(null);
     const [trimmingFilter, setTrimmingFilter] = useState<TrimmingFilter>("All");
     const [riskFilter, setRiskFilter] = useState<RiskFilter>("All");
+    const [stationFilter, setStationFilter] = useState("");
     const [substationFilter, setSubstationFilter] = useState("");
     const [landCoverFilter, setLandCoverFilter] = useState("");
     const trimmingWorkByPole = useMemo(() => {
@@ -54,6 +55,7 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
         matchesLineType(pole.lineType, lineType)
         && (trimmingFilter === "All" || (statusByPole.get(normalizePoleId(pole.poleId)) === trimmingFilter))
     ), [statePoles, lineType, trimmingFilter, statusByPole]);
+    const stations = useMemo(() => [...new Set(poles.map(workPackStation))].sort((a, b) => a.localeCompare(b)), [poles]);
     const substations = useMemo(() => [...new Set(poles.map(workPackSubstation))].sort((a, b) => a.localeCompare(b)), [poles]);
     const landCoverTypes = useMemo(() => [...new Set(poles.map(workPackLandCover))].sort((a, b) => a.localeCompare(b)), [poles]);
     const [search, setSearch] = useState("");
@@ -85,6 +87,7 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
         && statusByPole.get(normalizePoleId(pole.poleId)) === "Pending"
     ), [priorityPoles, statusByPole]);
     const filteredPoles = useMemo(() => priorityPoles.filter((pole) => {
+        if (stationFilter && workPackStation(pole) !== stationFilter) return false;
         if (landCoverFilter && workPackLandCover(pole) !== landCoverFilter) return false;
         if (substationFilter && workPackSubstation(pole) !== substationFilter) return false;
         const query = search.trim().toLowerCase();
@@ -92,14 +95,14 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
             .some((value) => (value ?? "").toLowerCase().includes(query))) return false;
         if (riskFilter !== "All" && riskLevel(pole) !== riskFilter) return false;
         return true;
-    }), [priorityPoles, riskFilter, substationFilter, landCoverFilter, search]);
+    }), [priorityPoles, riskFilter, stationFilter, substationFilter, landCoverFilter, search]);
     const priorityRankByPole = useMemo(() => new Map(priorityPoles.map((pole, index) => [pole, index + 1])), [priorityPoles]);
     const totalPages = Math.max(1, Math.ceil(filteredPoles.length / pageSize));
     const pagePoles = filteredPoles.slice((page - 1) * pageSize, page * pageSize);
 
-    const hasActiveFilters = landCoverFilter !== "" || substationFilter !== "" || search.trim() !== "" || riskFilter !== "All";
+    const hasActiveFilters = stationFilter !== "" || landCoverFilter !== "" || substationFilter !== "" || search.trim() !== "" || riskFilter !== "All";
 
-    useEffect(() => setPage(1), [riskFilter, trimmingFilter, substationFilter, landCoverFilter, search]);
+    useEffect(() => setPage(1), [riskFilter, trimmingFilter, stationFilter, substationFilter, landCoverFilter, search]);
     useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
     useEffect(() => {
         if (!targetPoleId) return;
@@ -111,6 +114,7 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
     }, [targetPoleId, pagePoles]);
 
     function resetFilters() {
+        setStationFilter("");
         setLandCoverFilter("");
         setSubstationFilter("");
         setSearch("");
@@ -119,6 +123,7 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
     }
 
     function selectRankedSubstation(substation: string | null) {
+        setStationFilter("");
         setLandCoverFilter("");
         setSubstationFilter(substation ?? "");
         setSearch("");
@@ -130,6 +135,7 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
     function openPendingPole(pole: Pole) {
         const poleId = pole.poleId?.trim();
         if (!poleId) return;
+        setStationFilter("");
         setLandCoverFilter("");
         setSubstationFilter("");
         setSearch(poleId);
@@ -258,6 +264,12 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
                                 <option value="All">All categories</option><option value="CRITICAL">Critical</option><option value="HIGH">High</option><option value="MEDIUM">Medium</option><option value="LOW">Low</option>
                             </select>
                         </label>
+                        <label>Station
+                            <select value={stationFilter} onChange={event => setStationFilter(event.target.value)}>
+                                <option value="">All stations</option>
+                                {stations.map(name => <option key={name} value={name}>{name}</option>)}
+                            </select>
+                        </label>
                         <label>Substation
                             <select value={substationFilter} onChange={event => setSubstationFilter(event.target.value)}>
                                 <option value="">All substations</option>
@@ -314,6 +326,7 @@ function FieldMetric({ label, value, note, accent = "blue" }: { label: string; v
     return <article className="metric"><span>{label}</span><strong className={accent}>{value}</strong><p>{note}</p></article>;
 }
 
+function workPackStation(pole: Pole) { return pole.station?.trim() || "Unassigned"; }
 function workPackLandCover(pole: Pole) { return pole.landCoverType?.trim() || "Unknown"; }
 function riskScore(pole: Pole) { return Number(pole.finalAiRiskScore ?? -1); }
 function normalizePoleId(poleId: unknown) { return String(poleId ?? "").trim().toUpperCase(); }
