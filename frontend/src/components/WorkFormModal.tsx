@@ -34,6 +34,7 @@ interface FormFieldProps {
 
 export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
     const dialog = useRef<HTMLDialogElement>(null);
+    const [showAiInfo, setShowAiInfo] = useState(false);
     const [loadAttempt, setLoadAttempt] = useState(0);
     const [record, setRecord] = useState<WorkFormRecord | null>(null);
     const [values, setValues] = useState<Record<string, WorkFormValue>>({});
@@ -166,13 +167,33 @@ export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
                 {readingImages > 0 && <p role="status">Preparing photo…</p>}
                 <fieldset disabled={saving || saved || readingImages > 0} className="work-form-fields">
                     {sortWorkFormFields(record?.fields ?? []).map(field => {
-                        const Container = field.type === "image" ? "div" : "label";
+                        const isAiField = field.name === "cr1da_aiconfirmedenroachment";
+                        const Container = field.type === "image" || isAiField ? "div" : "label";
                         return (
                         <Container
                             key={field.name}
-                            className={field.name === "cr1da_remarksactiontaken" ? "work-form-remarks" : field.type === "image" ? "work-photo-field" : undefined}
+                            className={isAiField ? "work-ai-field" : field.name === "cr1da_remarksactiontaken" ? "work-form-remarks" : field.type === "image" ? "work-photo-field" : undefined}
                         >
-                            <span>{field.required && !isLockedField(field) && <b aria-hidden="true">* </b>}{field.label}</span>
+                            {isAiField ? <>
+                                <div className="work-ai-heading">
+                                    <label htmlFor={field.name}>{field.required && <b aria-hidden="true">* </b>}{field.label}</label>
+                                    <button type="button" className="work-ai-info-button" aria-label="AI assessment guidance"
+                                        aria-expanded={showAiInfo} aria-controls="work-ai-guidance" onClick={() => setShowAiInfo(value => !value)}>i</button>
+                                </div>
+                                {showAiInfo && <div id="work-ai-guidance" className="work-ai-guidance">
+                                    <p><strong>AI correct</strong> <strong>:</strong> vegetation risk confirmed</p>
+                                    <p>AI <strong>Partially correct :</strong></p>
+                                    <ul>
+                                        <li>vegetation within 30m radius</li>
+                                        <li>Land Cover Type / Risk Category / Recommended Action : At least one is <strong>correct.</strong></li>
+                                    </ul>
+                                    <p><strong>AI False positive :</strong></p>
+                                    <ul>
+                                        <li>vegetation out of 30 m radius</li>
+                                        <li>Land Cover Type, Risk Category, Recommended Action : All are <strong>incorrect.</strong></li>
+                                    </ul>
+                                </div>}
+                            </> : <span>{field.required && !isLockedField(field) && <b aria-hidden="true">* </b>}{field.label}</span>}
                             <FormField
                                 field={field}
                                 error={fieldErrors[field.name]}
@@ -206,6 +227,7 @@ function FormField({ field, value, onChange, onImageChange, error }: FormFieldPr
     if (field.type === "choice" || field.type === "multiselect") {
         return (
             <select
+                id={field.name}
                 aria-invalid={!!error}
                 aria-describedby={error ? `${field.name}-error` : undefined}
                 disabled={locked}

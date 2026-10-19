@@ -27,3 +27,14 @@
 .work-photo-actions button { min-height: 44px; flex: 1 1 130px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
 .work-photo-actions button svg { flex-shrink: 0; }
 .work-form-fields input[hidden] { display: none; }
+
+.work-ai-field { display: flex; flex-direction: column; gap: 8px; min-width: 0; font-size: .9rem; font-weight: 650; }
+.work-ai-heading { display: flex; align-items: center; gap: 8px; }
+.work-form-fields .work-ai-heading label { display: block; }
+.work-form-dialog .work-ai-info-button { flex: 0 0 26px; width: 26px; height: 26px; padding: 0; border: 1px solid #45779d; border-radius: 50%; background: #e9f4fb; color: #174f78; font-size: .9rem; }
+.work-ai-info-button:focus-visible { outline: 3px solid #1689b0; outline-offset: 2px; }
+.work-ai-guidance { padding: 12px; border: 1px solid #b9d5e6; border-radius: 8px; background: #edf7fc; color: #183b5b; font-weight: 400; line-height: 1.5; }
+.work-ai-guidance p { margin: 0 0 8px; }
+.work-ai-guidance ul { margin: 0 0 12px; padding-left: 20px; }
+.work-ai-guidance ul:last-child { margin-bottom: 0; }
+.work-ai-guidance strong { font-weight: 750; }
