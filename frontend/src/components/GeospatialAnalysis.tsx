@@ -116,7 +116,7 @@ export function GeospatialAnalysis({ poles, showFeederRanking = true, onSelectPo
                 <button className={`feeder-rank-button${activeFeeder === feeder.id ? " is-selected" : ""}`} type="button" aria-pressed={activeFeeder === feeder.id} onClick={() => selectSubstation(activeFeeder === feeder.id ? null : feeder.id)}>
                     <span>
                         <b>{index + 1}. {feeder.id}</b>
-                        <small>{feeder.poleCount} poles · {feeder.criticalCount} critical · {feeder.highCount} high · {feeder.mediumCount} medium · {feeder.lowCount} low</small>
+                        <small>{feeder.poleCount} poles = {feeder.criticalCount} critical, {feeder.highCount} high, {feeder.mediumCount} medium, {feeder.lowCount} low</small>
                         </span><strong title="Highest pole risk score in this feeder">{feeder.maxScore >= 0 ? feeder.maxScore : "—"}</strong>
                         </button>
                         </li>)}</ol>
