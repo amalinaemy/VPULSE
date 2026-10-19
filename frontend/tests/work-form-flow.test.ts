@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
 import handler from '../api/work-feedback.ts';
-import { aiConfirmationCategory, feedbackFromWorkForm, normalizeWorkForm } from '../src/services/workFormResponse.ts';
+import { aiConfirmationCategory, aiConfirmationLabel, feedbackFromWorkForm, normalizeWorkForm } from '../src/services/workFormResponse.ts';
 
 const row = { cr1da_feederpolesection: 'P1', crf11_trimmingwork: 1,
   'crf11_trimmingwork@OData.Community.Display.V1.FormattedValue': 'Completed',
@@ -96,4 +96,12 @@ test('AI confirmation numeric codes and labels map to the dashboard categories',
   assert.equal(aiConfirmationCategory('AI False Positive - no vegetation issue found'), 'falsePositive');
   assert.equal(aiConfirmationCategory('unrecognized'), null);
   assert.equal(aiConfirmationCategory(null), null);
+});
+
+test('AI confirmation export labels map numeric choices and preserve unknowns', () => {
+  assert.equal(aiConfirmationLabel(0), 'AI Correct - vegetation risk confirmed');
+  assert.equal(aiConfirmationLabel('1'), 'AI Partially Correct');
+  assert.equal(aiConfirmationLabel(2), 'AI False Positive');
+  assert.equal(aiConfirmationLabel(99), '99');
+  assert.equal(aiConfirmationLabel(null), 'Not recorded');
 });

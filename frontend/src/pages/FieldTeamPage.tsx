@@ -10,6 +10,7 @@ import { dashboardTrimmingStatus, type DashboardTrimmingStatus } from "../servic
 import { useEffect, useMemo, useState } from "react";
 import { GeospatialAnalysis } from "../components/GeospatialAnalysis";
 import type { Pole, WorkFeedback } from "../services/api";
+import { aiConfirmationLabel } from "../services/workFormResponse";
 import { PoleDetailsModal } from "./EngineerPage";
 
 export interface FieldTeamPageProps {
@@ -46,6 +47,9 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
         });
         return feedbackByPole;
     }, [workFeedback]);
+    const aiConfirmationByPole = useMemo(() => new Map(workFeedback.map(feedback => [
+        normalizePoleId(feedback.poleId), feedback.aiConfirmedEncroachment,
+    ])), [workFeedback]);
     const statusesLoading = isLoading || feedbackLoading;
     const statusesFailed = Boolean(error || feedbackError);
     const statusesReady = !statusesLoading && !statusesFailed;
@@ -165,11 +169,12 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
             "Land Cover Type": pole.landCoverType ?? "",
             "Recommended Action": pole.action ?? "Field inspection required",
             "Trimming Work": statusByPole.get(normalizePoleId(pole.poleId)) ?? "Unavailable",
+            "AI Confirmed Enroachment": aiConfirmationLabel(aiConfirmationByPole.get(normalizePoleId(pole.poleId))),
         }));
         const worksheet = XLSX.utils.json_to_sheet(rows);
         worksheet["!cols"] = [
             { wch: 14 }, { wch: 20 }, { wch: 18 }, { wch: 28 }, { wch: 14 }, { wch: 14 },
-            { wch: 16 }, { wch: 12 }, { wch: 24 }, { wch: 42 }, { wch: 18 },
+            { wch: 16 }, { wch: 12 }, { wch: 24 }, { wch: 42 }, { wch: 18 }, { wch: 36 },
         ];
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Work Orders");

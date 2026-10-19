@@ -29,6 +29,15 @@ export const workFormChoices: Record<string, { value: number; label: string }[]>
   ],
 };
 
+export function aiConfirmationLabel(value: unknown): string {
+  const numeric = typeof value === "number" ? value
+    : typeof value === "string" && /^\d+$/.test(value.trim()) ? Number(value.trim()) : null;
+  const choice = workFormChoices.cr1da_aiconfirmedenroachment.find(option => option.value === numeric);
+  if (choice) return choice.label;
+  if (typeof value === "string" && value.trim()) return value.trim();
+  return value == null ? "Not recorded" : String(value);
+}
+
 export type AiConfirmationCategory = "correct" | "partial" | "falsePositive";
 
 export function aiConfirmationCategory(value: unknown): AiConfirmationCategory | null {
