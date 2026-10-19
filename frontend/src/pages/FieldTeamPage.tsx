@@ -1,3 +1,5 @@
+import { matchesSelection } from "../services/filterSelection";
+import { FieldMultiFilter } from "../components/FieldMultiFilter";
 import { sortWorkPackPoles, type WorkPackSort } from "../services/workPackSort";
 import { StateFilter } from "../components/StateFilter";
 import { useStateFilter } from "../services/useStateFilter";
@@ -22,20 +24,18 @@ export interface FieldTeamPageProps {
 }
 
 type TrimmingStatus = "Completed" | "Not Started" | "N/A" | "Pending";
-type TrimmingFilter = "All" | TrimmingStatus;
-type RiskFilter = "All" | "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
 const pageSize = 10;
 
 export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error, feedbackLoading, feedbackError, onRefreshFeedback, onWorkFormSaved }: FieldTeamPageProps) {
     const { poles: statePoles, states, selection, setSelection } = useStateFilter(allPoles);
     const [lineType, setLineType] = useState<LineTypeFilterValue>("ALL");
     const [formPole, setFormPole] = useState<Pole | null>(null);
-    const [trimmingFilter, setTrimmingFilter] = useState<TrimmingFilter>("All");
-    const [riskFilter, setRiskFilter] = useState<RiskFilter>("All");
+    const [trimmingFilter, setTrimmingFilter] = useState<string[]>([]);
+    const [riskFilter, setRiskFilter] = useState<string[]>([]);
     const [sortOrder, setSortOrder] = useState<WorkPackSort>("priority");
-    const [stationFilter, setStationFilter] = useState("");
-    const [substationFilter, setSubstationFilter] = useState("");
-    const [landCoverFilter, setLandCoverFilter] = useState("");
+    const [stationFilter, setStationFilter] = useState<string[]>([]);
+    const [substationFilter, setSubstationFilter] = useState<string[]>([]);
+    const [landCoverFilter, setLandCoverFilter] = useState<string[]>([]);
     const trimmingWorkByPole = useMemo(() => {
         const feedbackByPole = new Map<string, string | undefined>();
         workFeedback.forEach((feedback) => {
@@ -58,7 +58,7 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
         matchesLineType(pole.lineType, lineType)
     ), [statePoles, lineType]);
     const poles = useMemo(() => summaryPoles.filter(pole =>
-        trimmingFilter === "All" || statusByPole.get(normalizePoleId(pole.poleId)) === trimmingFilter
+        matchesSelection(trimmingFilter, statusByPole.get(normalizePoleId(pole.poleId)) ?? "Unavailable")
     ), [summaryPoles, trimmingFilter, statusByPole]);
     const stations = useMemo(() => [...new Set(poles.map(workPackStation))].sort((a, b) => a.localeCompare(b)), [poles]);
     const substations = useMemo(() => [...new Set(poles.map(workPackSubstation))].sort((a, b) => a.localeCompare(b)), [poles]);
@@ -92,13 +92,13 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
         && statusByPole.get(normalizePoleId(pole.poleId)) === "Pending"
     ), [priorityPoles, statusByPole]);
     const filteredPoles = useMemo(() => priorityPoles.filter((pole) => {
-        if (stationFilter && workPackStation(pole) !== stationFilter) return false;
-        if (landCoverFilter && workPackLandCover(pole) !== landCoverFilter) return false;
-        if (substationFilter && workPackSubstation(pole) !== substationFilter) return false;
+        if (!matchesSelection(stationFilter, workPackStation(pole))) return false;
+        if (!matchesSelection(landCoverFilter, workPackLandCover(pole))) return false;
+        if (!matchesSelection(substationFilter, workPackSubstation(pole))) return false;
         const query = search.trim().toLowerCase();
         if (query && ![pole.poleId, pole.feederId, pole.streetName, pole.substation]
             .some((value) => (value ?? "").toLowerCase().includes(query))) return false;
-        if (riskFilter !== "All" && riskLevel(pole) !== riskFilter) return false;
+        if (!matchesSelection(riskFilter, riskLevel(pole))) return false;
         return true;
     }), [priorityPoles, riskFilter, stationFilter, substationFilter, landCoverFilter, search]);
     const priorityRankByPole = useMemo(() => new Map(priorityPoles.map((pole, index) => [pole, index + 1])), [priorityPoles]);
@@ -106,7 +106,7 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
     const sortedPoles = useMemo(() => sortWorkPackPoles(filteredPoles, sortOrder), [filteredPoles, sortOrder]);
     const pagePoles = sortedPoles.slice((page - 1) * pageSize, page * pageSize);
 
-    const hasActiveFilters = sortOrder !== "priority" || stationFilter !== "" || landCoverFilter !== "" || substationFilter !== "" || search.trim() !== "" || riskFilter !== "All";
+    const hasActiveFilters = sortOrder !== "priority" || stationFilter.length > 0 || landCoverFilter.length > 0 || substationFilter.length > 0 || search.trim() !== "" || riskFilter.length > 0;
 
     useEffect(() => setPage(1), [sortOrder, riskFilter, trimmingFilter, stationFilter, substationFilter, landCoverFilter, search]);
     useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
@@ -121,20 +121,20 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
 
     function resetFilters() {
         setSortOrder("priority");
-        setStationFilter("");
-        setLandCoverFilter("");
-        setSubstationFilter("");
+        setStationFilter([]);
+        setLandCoverFilter([]);
+        setSubstationFilter([]);
         setSearch("");
-        setRiskFilter("All");
+        setRiskFilter([]);
         setPage(1);
     }
 
     function selectRankedSubstation(substation: string | null) {
-        setStationFilter("");
-        setLandCoverFilter("");
-        setSubstationFilter(substation ?? "");
+        setStationFilter([]);
+        setLandCoverFilter([]);
+        setSubstationFilter(substation ? [substation] : []);
         setSearch("");
-        setRiskFilter("All");
+        setRiskFilter([]);
         setPage(1);
         setTargetPoleId(null);
     }
@@ -142,11 +142,11 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
     function openPendingPole(pole: Pole) {
         const poleId = pole.poleId?.trim();
         if (!poleId) return;
-        setStationFilter("");
-        setLandCoverFilter("");
-        setSubstationFilter("");
+        setStationFilter([]);
+        setLandCoverFilter([]);
+        setSubstationFilter([]);
         setSearch(poleId);
-        setRiskFilter("CRITICAL");
+        setRiskFilter(["CRITICAL"]);
         setPage(1);
         setTargetPoleId(poleId);
     }
@@ -187,19 +187,14 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
             <LineTypeFilter value={lineType} onChange={value => { setLineType(value); setSelectedPole(null); setPage(1); setTargetPoleId(null); setFormPole(null); }} />
             <fieldset className="page-state-filter">
                 <legend>Filter by trimming work</legend>
-                <select aria-label="Filter by trimming work" value={trimmingFilter} onChange={event => {
-                    setTrimmingFilter(event.target.value as TrimmingFilter);
-                    setPage(1);
-                    setSelectedPole(null);
-                    setTargetPoleId(null);
-                    setFormPole(null);
-                }}>
-                    <option value="All">All trimming work</option>
-                    <option value="Completed">Completed</option>
-                    <option value="Not Started">Not Started</option>
-                    <option value="N/A">N/A</option>
-                    <option value="Pending">Pending</option>
-                </select>
+                <FieldMultiFilter label="Filter by trimming work" hideLabel allLabel="All trimming work"
+                    options={["Completed", "Not Started", "N/A", "Pending"]} selected={trimmingFilter} onChange={values => {
+                        setTrimmingFilter(values);
+                        setPage(1);
+                        setSelectedPole(null);
+                        setTargetPoleId(null);
+                        setFormPole(null);
+                    }} />
             </fieldset>
         </div>
         <StateFilter states={states} selection={selection} count={poles.length} onChange={value => {
@@ -266,29 +261,10 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
                         <label className="field-pole-search">Search poles
                             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Pole ID, Feeder ID, Street Name, or Substation" type="search" />
                         </label>
-                        <label>Risk category
-                            <select value={riskFilter} onChange={(event) => setRiskFilter(event.target.value as RiskFilter)}>
-                                <option value="All">All categories</option><option value="CRITICAL">Critical</option><option value="HIGH">High</option><option value="MEDIUM">Medium</option><option value="LOW">Low</option>
-                            </select>
-                        </label>
-                        <label>Station
-                            <select value={stationFilter} onChange={event => setStationFilter(event.target.value)}>
-                                <option value="">All stations</option>
-                                {stations.map(name => <option key={name} value={name}>{name}</option>)}
-                            </select>
-                        </label>
-                        <label>Substation
-                            <select value={substationFilter} onChange={event => setSubstationFilter(event.target.value)}>
-                                <option value="">All substations</option>
-                                {substations.map(name => <option key={name} value={name}>{name}</option>)}
-                            </select>
-                        </label>
-                        <label>Land cover type
-                            <select value={landCoverFilter} onChange={event => setLandCoverFilter(event.target.value)}>
-                                <option value="">All land cover types</option>
-                                {landCoverTypes.map(name => <option key={name} value={name}>{name}</option>)}
-                            </select>
-                        </label>
+                        <FieldMultiFilter label="Risk category" allLabel="All categories" options={["CRITICAL", "HIGH", "MEDIUM", "LOW"]} selected={riskFilter} onChange={setRiskFilter} />
+                        <FieldMultiFilter label="Station" allLabel="All stations" options={stations} selected={stationFilter} onChange={setStationFilter} />
+                        <FieldMultiFilter label="Substation" allLabel="All substations" options={substations} selected={substationFilter} onChange={setSubstationFilter} />
+                        <FieldMultiFilter label="Land cover type" allLabel="All land cover types" options={landCoverTypes} selected={landCoverFilter} onChange={setLandCoverFilter} />
                         <label>Sort by
                             <select value={sortOrder} onChange={event => setSortOrder(event.target.value as WorkPackSort)}>
                                 <option value="priority">Priority (highest risk first)</option>

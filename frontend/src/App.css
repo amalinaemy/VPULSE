@@ -3521,3 +3521,13 @@ button {
     .map-card-tools .map-risk-options label { box-sizing: border-box; min-height: 44px; touch-action: manipulation; }
     .map-risk-options input { width: 22px; height: 22px; flex-shrink: 0; }
 }
+
+.field-multi-filter { min-width: 150px; max-width: 100%; display: grid; gap: 5px; }
+.field-multi-label { color: #63768f; font-size: .68rem; font-weight: 800; text-transform: uppercase; }
+.field-multi-filter details { position: relative; }
+.field-multi-filter summary { box-sizing: border-box; min-height: 36px; padding: 8px 12px; border: 1px solid #cbd9e7; border-radius: 9px; background: #fff; color: #17345f; font-size: .76rem; font-weight: 700; cursor: pointer; overflow-wrap: anywhere; }
+.field-multi-filter summary:focus-visible { outline: 3px solid #3978b7; outline-offset: 2px; }
+.field-multi-options { position: absolute; z-index: 1300; top: calc(100% + 5px); left: 0; box-sizing: border-box; width: max-content; min-width: 100%; max-width: min(380px, 80vw); max-height: 300px; overflow-y: auto; overscroll-behavior: contain; padding: 8px; border: 1px solid #b7cce0; border-radius: 10px; background: #fff; box-shadow: 0 6px 18px #16366530; }
+.field-multi-filter .field-multi-options label { display: flex; align-items: center; gap: 9px; padding: 8px; color: #17345f; font-size: .8rem; font-weight: 600; text-transform: none; cursor: pointer; overflow-wrap: anywhere; }
+.field-multi-filter .field-multi-options input { min-width: 18px; min-height: 18px; width: 18px; height: 18px; flex-shrink: 0; padding: 0; margin: 0; accent-color: #087e98; }
+@media (pointer: coarse) { .field-multi-filter summary, .field-multi-filter .field-multi-options label { min-height: 44px; } }
