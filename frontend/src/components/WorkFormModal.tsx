@@ -182,13 +182,13 @@ export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
                                         aria-expanded={showAiInfo} aria-controls="work-ai-guidance" onClick={() => setShowAiInfo(value => !value)}>i</button>
                                 </div>
                                 {showAiInfo && <div id="work-ai-guidance" className="work-ai-guidance">
-                                    <p><strong>AI correct</strong> <strong>:</strong> vegetation risk confirmed</p>
-                                    <p><strong>AI Partially correct :</strong></p>
+                                    <p><strong>AI Correct</strong> <strong>:</strong> Vegetation risk confirmed</p>
+                                    <p><strong>AI Partially Correct :</strong></p>
                                     <ul>
                                         <li>Vegetation <strong>within 30m radius</strong></li>
                                         <li>Land Cover Type / Risk Category / Recommended Action : At least one is <strong>correct.</strong></li>
                                     </ul>
-                                    <p><strong>AI False positive :</strong></p>
+                                    <p><strong>AI False Positive :</strong></p>
                                     <ul>
                                         <li>Vegetation <strong>out of 30 m radius</strong></li>
                                         <li>Land Cover Type, Risk Category, Recommended Action : All are <strong>incorrect.</strong></li>
