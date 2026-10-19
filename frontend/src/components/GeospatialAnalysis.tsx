@@ -116,7 +116,7 @@ export function GeospatialAnalysis({ poles, showFeederRanking = true, onSelectPo
                 <button className={`feeder-rank-button${activeFeeder === feeder.id ? " is-selected" : ""}`} type="button" aria-pressed={activeFeeder === feeder.id} onClick={() => selectSubstation(activeFeeder === feeder.id ? null : feeder.id)}>
                     <span>
                         <b>{index + 1}. {feeder.id}</b>
-                        <small>{feeder.poleCount} poles · {feeder.criticalCount} critical</small>
+                        <small>{feeder.poleCount} poles · {feeder.criticalCount} critical · {feeder.highCount} high · {feeder.mediumCount} medium · {feeder.lowCount} low</small>
                         </span><strong title="Highest pole risk score in this feeder">{feeder.maxScore >= 0 ? feeder.maxScore : "—"}</strong>
                         </button>
                         </li>)}</ol>
@@ -194,17 +194,21 @@ function PoleDetails({ pole, onClose, onViewDetails, onOpenForm }: { pole: Pole;
 function substationName(pole: Pole) { return pole.substation?.trim() || pole.feederId?.trim() || "Unassigned feeder"; }
 
 function rankFeeders(poles: Pole[]) {
-    const totals = new Map<string, { total: number; poleCount: number; criticalCount: number; maxScore: number }>();
+    const totals = new Map<string, { total: number; poleCount: number; criticalCount: number; highCount: number; mediumCount: number; lowCount: number; maxScore: number }>();
     poles.forEach((pole) => {
         const id = substationName(pole);
-        const current = totals.get(id) ?? { total: 0, poleCount: 0, criticalCount: 0, maxScore: -1 };
+        const current = totals.get(id) ?? { total: 0, poleCount: 0, criticalCount: 0, highCount: 0, mediumCount: 0, lowCount: 0, maxScore: -1 };
         const score = Number(pole.finalAiRiskScore);
         if (pole.finalAiRiskScore !== null && Number.isFinite(score)) {
             current.total += Math.max(0, score);
             current.maxScore = Math.max(current.maxScore, score);
         }
         current.poleCount += 1;
-        current.criticalCount += riskLevel(pole) === "CRITICAL" ? 1 : 0;
+        const category = riskLevel(pole);
+        current.criticalCount += category === "CRITICAL" ? 1 : 0;
+        current.highCount += category === "HIGH" ? 1 : 0;
+        current.mediumCount += category === "MEDIUM" ? 1 : 0;
+        current.lowCount += category === "LOW" ? 1 : 0;
         totals.set(id, current);
     });
     return [...totals.entries()].map(([id, total]) => ({ id, ...total, averageScore: total.poleCount ? total.total / total.poleCount : 0 }))
