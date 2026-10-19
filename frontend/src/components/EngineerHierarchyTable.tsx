@@ -1,3 +1,4 @@
+import { comparePoleIds } from "../services/workPackSort";
 import { poleTrimmingStatus } from "../services/trimmingWork";
 import { useEffect, useMemo, useState } from "react";
 import type { Pole, WorkFeedback } from "../services/api";
@@ -218,5 +219,5 @@ function hierarchyValues(level: Level, poles: HierarchyPole[], state?: string) {
 
 function riskLevel(pole: Pole) { const category = pole.finalAiRiskCategory?.trim().toUpperCase(); if (["CRITICAL", "HIGH", "MEDIUM", "LOW"].includes(category ?? "")) return category!; const score = Number(pole.finalAiRiskScore ?? -1); return score >= 80 ? "CRITICAL" : score >= 60 ? "HIGH" : score >= 40 ? "MEDIUM" : "LOW"; }
 function hierarchyRowId(poleId: string | null) { return `hierarchy-row-${(poleId ?? "").trim().toLowerCase().replace(/[^a-z0-9_-]/g, "-")}`; }
-function compareCandidates(first: Pole, second: Pole, key: CandidateSort, direction: SortDirection) { const values = key === "poleId" ? [first.poleId ?? "", second.poleId ?? ""] : key === "riskCategory" ? [riskLevel(first), riskLevel(second)] : [Number(first.finalAiRiskScore ?? -1), Number(second.finalAiRiskScore ?? -1)]; const result = typeof values[0] === "number" ? (values[0] as number) - (values[1] as number) : String(values[0]).localeCompare(String(values[1])); return direction === "asc" ? result : -result; }
+function compareCandidates(first: Pole, second: Pole, key: CandidateSort, direction: SortDirection) { const values = key === "poleId" ? [first.poleId ?? "", second.poleId ?? ""] : key === "riskCategory" ? [riskLevel(first), riskLevel(second)] : [Number(first.finalAiRiskScore ?? -1), Number(second.finalAiRiskScore ?? -1)]; const result = key === "poleId" ? comparePoleIds(first.poleId, second.poleId) : typeof values[0] === "number" ? (values[0] as number) - (values[1] as number) : String(values[0]).localeCompare(String(values[1])); return direction === "asc" ? result : -result; }
 function openMap(pole: Pole) { window.open(`https://www.google.com/maps?q=${pole.latitude},${pole.longitude}`, "_blank", "noopener,noreferrer"); }
