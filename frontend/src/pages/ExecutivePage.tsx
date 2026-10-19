@@ -5,7 +5,7 @@ import { trimmingWorkStatus } from "../services/trimmingWork";
 import "./ExecutivePage.css";
 
 const risks = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "UNKNOWN"];
-const statuses = ["Completed", "In Progress", "Not Started", "Pending"];
+const statuses = ["Completed", "N/A", "Not Started", "Pending"];
 const colors = ["#ed6477", "#efa94c", "#53b6ed", "#51cba0", "#8896b3"];
 const locationFields = ["state", "zone", "subzone", "station", "substation", "feederId"] as const;
 const labels = ["State", "Zone", "Subzone", "Station", "Substation", "Feeder"];
@@ -57,12 +57,12 @@ export function ExecutivePage({ poles, workFeedback, isLoading, error, feedbackL
 
     const bars = [...groups].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 10).map(([label, count]) => ({ label, count, color: "#53b6ed" }));
 
-    const packs = new Map<string, { location: string; feeder: string; total: number; completed: number; active: number; pending: number }>();
+    const packs = new Map<string, { location: string; feeder: string; total: number; completed: number; notApplicable: number; pending: number }>();
     priority.forEach(({ pole, status }) => {
         const path = locationFields.map(field => valueOf(pole[field]));
         const key = JSON.stringify(path);
-        const pack = packs.get(key) ?? { location: path.slice(0, -1).join(" / "), feeder: path[5], total: 0, completed: 0, active: 0, pending: 0 };
-        pack.total++; if (status === "Completed") pack.completed++; else if (status === "In Progress") pack.active++; else pack.pending++;
+        const pack = packs.get(key) ?? { location: path.slice(0, -1).join(" / "), feeder: path[5], total: 0, completed: 0, notApplicable: 0, pending: 0 };
+        pack.total++; if (status === "Completed") pack.completed++; else if (status === "N/A") pack.notApplicable++; else pack.pending++;
         packs.set(key, pack);
     });
 
@@ -180,7 +180,7 @@ export function ExecutivePage({ poles, workFeedback, isLoading, error, feedbackL
                                     <th>Location</th>
                                     <th>Poles</th>
                                     <th>Completed</th>
-                                    <th>In progress</th>
+                                    <th>N/A</th>
                                     <th>Pending / Not Started</th>
                                     <th>Completion</th>
                                 </tr>
@@ -193,7 +193,7 @@ export function ExecutivePage({ poles, workFeedback, isLoading, error, feedbackL
                                     </td>
                                     <td>{pack.total}</td>
                                     <td>{feedbackUnavailable ? "—" : pack.completed}</td>
-                                    <td>{feedbackUnavailable ? "—" : pack.active}</td>
+                                    <td>{feedbackUnavailable ? "—" : pack.notApplicable}</td>
                                     <td>{feedbackUnavailable ? "—" : pack.pending}</td>
                                     <td>{feedbackUnavailable ? "—" : <><progress
                                         aria-label={`${pack.feeder} completion`}

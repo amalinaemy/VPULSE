@@ -3063,9 +3063,9 @@ button {
     color: #14713c;
 }
 
-.trimming-status.status-in-progress {
-    background: #fff0dc;
-    color: #b95400;
+.trimming-status.status-not-applicable {
+    background: #e8eef5;
+    color: #526880;
 }
 
 .trimming-status.status-not-started {

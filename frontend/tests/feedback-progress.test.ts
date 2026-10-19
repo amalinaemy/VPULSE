@@ -46,9 +46,9 @@ test('raw flow record opens as fields and a saved status survives an older backg
     globalThis.fetch=async(url,options)=>options?.method==='PUT'?Response.json({ok:true}):new Promise<Response>(resolve=>{release=resolve;});
     const loading=api.getWorkFeedback([row.cr1da_feederpolesection]);
     await api.saveWorkForm(row.cr1da_feederpolesection,form.id,form.version,{crf11_trimmingwork:1});
-    assert.equal(updates.at(-1).trimmingWork,'In Progress');
+    assert.equal(updates.at(-1).trimmingWork,'N/A');
     release(Response.json([{poleId:row.cr1da_feederpolesection,trimmingWork:'Completed'}]));
-    assert.equal((await loading)[0].trimmingWork,'In Progress');
+    assert.equal((await loading)[0].trimmingWork,'N/A');
   } finally {unsubscribe();globalThis.fetch=original;}
 });
 
@@ -85,7 +85,7 @@ test('summary loads in one request and keeps the first record per normalized pol
     assert.equal(lookup.size, 5);
     assert.equal(lookup.get('POLE-A').trimmingWork, 'Completed');
     assert.equal(lookup.get('POLE-A').modifiedOn, '2026-10-16T00:00:00Z');
-    assert.equal(lookup.get('POLE-B').trimmingWork, 'In Progress');
+    assert.equal(lookup.get('POLE-B').trimmingWork, 'N/A');
     assert.equal(lookup.get('POLE-C').trimmingWork, 'Not Started');
     assert.equal(lookup.get('POLE-D').trimmingWork, 'Completed');
     assert.equal(lookup.get('POLE-E').trimmingWork, null);

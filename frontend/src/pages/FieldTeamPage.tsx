@@ -21,7 +21,7 @@ export interface FieldTeamPageProps {
     onWorkFormSaved: () => Promise<void>;
 }
 
-type TrimmingStatus = "Completed" | "Not Started" | "In Progress" | "Pending";
+type TrimmingStatus = "Completed" | "Not Started" | "N/A" | "Pending";
 type TrimmingFilter = "All" | TrimmingStatus;
 type RiskFilter = "All" | "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
 const pageSize = 10;
@@ -69,7 +69,7 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
     const statusCounts = useMemo(() => {
         const counts: Record<TrimmingStatus | "Unknown", number> = {
             "Completed": 0,
-            "In Progress": 0,
+            "N/A": 0,
             "Not Started": 0,
             "Pending": 0,
             "Unknown": 0,
@@ -194,7 +194,7 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
                     <option value="All">All trimming work</option>
                     <option value="Completed">Completed</option>
                     <option value="Not Started">Not Started</option>
-                    <option value="In Progress">In Progress</option>
+                    <option value="N/A">N/A</option>
                     <option value="Pending">Pending</option>
                 </select>
             </fieldset>
@@ -220,7 +220,7 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
         <section className="metrics field-team-metrics">
             <FieldMetric label="Today Work Pack" value={statusesReady ? priorityPoles.length : "—"} note="All risk categories" />
             <FieldMetric label="Completed" value={statusesReady ? statusCounts.Completed : "—"} note="Trimming work completed" accent="green" />
-            <FieldMetric label="In Progress" value={statusesReady ? statusCounts["In Progress"] : "—"} note="Work currently underway" accent="orange" />
+            <FieldMetric label="N/A" value={statusesReady ? statusCounts["N/A"] : "—"} note="Trimming not applicable" accent="orange" />
             <FieldMetric label="Not Started" value={statusesReady ? statusCounts["Not Started"] : "—"} note="Work has not started" accent="red" />
             <FieldMetric label="Pending" value={statusesReady ? statusCounts.Pending : "—"} note="Need site action" />
         </section>
@@ -344,7 +344,7 @@ function normalizePoleId(poleId: unknown) { return String(poleId ?? "").trim().t
 function fieldTaskId(poleId: string | null) { return `field-task-${normalizePoleId(poleId).replace(/[^A-Z0-9_-]/g, "-")}`; }
 function trimmingStatusClass(status: DashboardTrimmingStatus) {
     if (status === "Completed") return "status-completed";
-    if (status === "In Progress") return "status-in-progress";
+    if (status === "N/A") return "status-not-applicable";
     if (status === "Not Started") return "status-not-started";
     return status === "Pending" ? "status-pending" : "status-unknown";
 }

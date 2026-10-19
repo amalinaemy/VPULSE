@@ -112,5 +112,5 @@ After saving, React requests the summary once using `fresh=1` and browser
 `cache: no-store`. Full forms load only when opened. Missing inspection records
 become Pending only after both candidates and the summary load successfully.
 Unknown saved choice values remain Unknown. The configured numeric values are
-0 Completed, 1 In Progress, and 2 Not Started; a numeric Pending choice has not
+0 Completed, 1 N/A, and 2 Not Started; a numeric Pending choice has not
 been confirmed.

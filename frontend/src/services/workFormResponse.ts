@@ -16,7 +16,7 @@ export const workFormChoices: Record<string, { value: number; label: string }[]>
   ],
   cr1da_fieldtrimmingrequired: [{ value: 0, label: 'No' }, { value: 1, label: 'Yes' }],
   crf11_trimmingwork: [
-    { value: 0, label: 'Completed' }, { value: 1, label: 'In Progress' }, { value: 2, label: 'Not Started' },
+    { value: 0, label: 'Completed' }, { value: 1, label: 'N/A' }, { value: 2, label: 'Not Started' },
   ],
   cr1da_inspectionstatus: [
     { value: 0, label: 'Inspection Completed' }, { value: 1, label: 'Trimming Completed' },
@@ -67,6 +67,7 @@ export function feedbackFromWorkForm(data: unknown, poleId: string): WorkFeedbac
     throw new Error('GetWorkForm returned an unrecognized work record.');
   }
   if (typeof status === 'number') status = workFormChoices.crf11_trimmingwork.find(option => option.value === status)?.label ?? status;
+  if (typeof status === 'string' && ['1', 'in progress', 'n/a', 'not applicable'].includes(status.trim().toLowerCase())) status = 'N/A';
   if (status != null && typeof status !== 'string') {
     throw new Error('GetWorkForm returned a numeric trimming choice without its formatted label. Include the Dataverse formatted values in the Response.');
   }
@@ -97,7 +98,9 @@ export function normalizeWorkForm(data: unknown, poleId: string): WorkFormRecord
   if (Array.isArray(record.fields)) return {
     ...(data as WorkFormRecord),
     fields: (data as WorkFormRecord).fields.map(field => field.type === 'image'
-      ? { ...field, value: imagePreview(field.value) } : field),
+      ? { ...field, value: imagePreview(field.value) }
+      : field.name.toLowerCase() === 'crf11_trimmingwork'
+        ? { ...field, options: workFormChoices.crf11_trimmingwork } : field),
   };
   if (record.found !== false && !('cr1da_feederpolesection' in record)) {
     throw new Error('GetWorkForm did not return a recognized Dataverse work record.');

@@ -18,7 +18,8 @@ function feedbackFromWorkForm(data: unknown, poleId: string) {
   } else if (!('cr1da_feederpolesection' in record) && !('crf11_trimmingwork' in record)) {
     throw new Error('GetWorkForm returned an unrecognized work record.');
   }
-  if (typeof status === 'number') status = ({ 0: 'Completed', 1: 'In Progress', 2: 'Not Started' } as Record<number, string>)[status] ?? status;
+  if (typeof status === 'number') status = ({ 0: 'Completed', 1: 'N/A', 2: 'Not Started' } as Record<number, string>)[status] ?? status;
+  if (typeof status === 'string' && ['1', 'in progress', 'n/a', 'not applicable'].includes(status.trim().toLowerCase())) status = 'N/A';
   if (status != null && typeof status !== 'string') {
     throw new Error('GetWorkForm returned a numeric trimming choice without its formatted label. Include the Dataverse formatted values in the Response.');
   }

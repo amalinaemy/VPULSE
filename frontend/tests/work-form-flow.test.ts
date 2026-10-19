@@ -14,7 +14,7 @@ test('raw records and not-found responses normalize without inventing choice cod
   assert.equal(feedbackFromWorkForm(row, 'P1')[0].trimmingWork, 'Completed');
   assert.deepEqual(feedbackFromWorkForm({found:false}, 'P1'), []);
   assert.throws(() => feedbackFromWorkForm({...row, cr1da_feederpolesection:'P2'}, 'P1'), /different pole/);
-  assert.equal(feedbackFromWorkForm({crf11_trimmingwork:1}, 'P1')[0].trimmingWork, 'In Progress');
+  assert.equal(feedbackFromWorkForm({crf11_trimmingwork:1}, 'P1')[0].trimmingWork, 'N/A');
   assert.throws(() => feedbackFromWorkForm({crf11_trimmingwork:999}, 'P1'), /formatted label/);
   const form = normalizeWorkForm(row,'P1');
   assert.equal(form.id,'record-id'); assert.equal(form.version,'W/"2"');
@@ -40,6 +40,8 @@ test('feedback route requires and sends poleId to the existing GetWorkForm flow'
     };
     const response=await invoke({poleId:'P1'});
     assert.equal(response.code,200); assert.equal(response.body[0].trimmingWork,'Completed');
+    globalThis.fetch=async()=>Response.json({cr1da_feederpolesection:'P1', crf11_trimmingwork:1});
+    assert.equal((await invoke({poleId:'P1'})).body[0].trimmingWork,'N/A');
     globalThis.fetch=async()=>Response.json({found:false});
     assert.deepEqual((await invoke({poleId:'P1'})).body,[]);
     globalThis.fetch=async()=>new Response('',{status:400});
@@ -75,4 +77,15 @@ test('dashboard requests are deduplicated, bounded, cached, and fail instead of 
     const controller=new AbortController();controller.abort();
     await assert.rejects(api.getWorkFeedback(ids,controller.signal),{name:'AbortError'});
   }finally{globalThis.fetch=oldFetch;}
+});
+
+
+test('renamed trimming choice keeps code 1 and displays N/A in forms and feedback', () => {
+  const form = normalizeWorkForm({cr1da_feederpolesection: 'P1', crf11_trimmingwork: 1}, 'P1');
+  const field = form.fields.find(field => field.name === 'crf11_trimmingwork')!;
+  assert.equal(field.value, 1);
+  const legacy = normalizeWorkForm({fields: [{...field, options: [{value: 1, label: 'In Progress'}]}]}, 'P1');
+  assert.equal(legacy.fields[0].options?.find(option => option.value === 1)?.label, 'N/A');
+  assert.deepEqual(field.options, [{value: 0, label: 'Completed'}, {value: 1, label: 'N/A'}, {value: 2, label: 'Not Started'}]);
+  assert.equal(feedbackFromWorkForm({crf11_trimmingwork: 1, 'crf11_trimmingwork@OData.Community.Display.V1.FormattedValue': 'In Progress'}, 'P1')[0].trimmingWork, 'N/A');
 });
