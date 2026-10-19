@@ -1,3 +1,4 @@
+import { sortWorkPackPoles, type WorkPackSort } from "../services/workPackSort";
 import { StateFilter } from "../components/StateFilter";
 import { useStateFilter } from "../services/useStateFilter";
 import { LineTypeFilter } from "../components/LineTypeFilter";
@@ -31,6 +32,7 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
     const [formPole, setFormPole] = useState<Pole | null>(null);
     const [trimmingFilter, setTrimmingFilter] = useState<TrimmingFilter>("All");
     const [riskFilter, setRiskFilter] = useState<RiskFilter>("All");
+    const [sortOrder, setSortOrder] = useState<WorkPackSort>("priority");
     const [stationFilter, setStationFilter] = useState("");
     const [substationFilter, setSubstationFilter] = useState("");
     const [landCoverFilter, setLandCoverFilter] = useState("");
@@ -98,11 +100,12 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
     }), [priorityPoles, riskFilter, stationFilter, substationFilter, landCoverFilter, search]);
     const priorityRankByPole = useMemo(() => new Map(priorityPoles.map((pole, index) => [pole, index + 1])), [priorityPoles]);
     const totalPages = Math.max(1, Math.ceil(filteredPoles.length / pageSize));
-    const pagePoles = filteredPoles.slice((page - 1) * pageSize, page * pageSize);
+    const sortedPoles = useMemo(() => sortWorkPackPoles(filteredPoles, sortOrder), [filteredPoles, sortOrder]);
+    const pagePoles = sortedPoles.slice((page - 1) * pageSize, page * pageSize);
 
-    const hasActiveFilters = stationFilter !== "" || landCoverFilter !== "" || substationFilter !== "" || search.trim() !== "" || riskFilter !== "All";
+    const hasActiveFilters = sortOrder !== "priority" || stationFilter !== "" || landCoverFilter !== "" || substationFilter !== "" || search.trim() !== "" || riskFilter !== "All";
 
-    useEffect(() => setPage(1), [riskFilter, trimmingFilter, stationFilter, substationFilter, landCoverFilter, search]);
+    useEffect(() => setPage(1), [sortOrder, riskFilter, trimmingFilter, stationFilter, substationFilter, landCoverFilter, search]);
     useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
     useEffect(() => {
         if (!targetPoleId) return;
@@ -114,6 +117,7 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
     }, [targetPoleId, pagePoles]);
 
     function resetFilters() {
+        setSortOrder("priority");
         setStationFilter("");
         setLandCoverFilter("");
         setSubstationFilter("");
@@ -146,7 +150,7 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
 
     async function exportWorkOrders() {
         const XLSX = await import("xlsx");
-        const rows = filteredPoles.map((pole) => ({
+        const rows = sortedPoles.map((pole) => ({
             "Priority Rank": priorityRankByPole.get(pole),
             "Pole ID": pole.poleId ?? "",
             "Feeder ID": pole.feederId ?? "",
@@ -280,6 +284,13 @@ export function FieldTeamPage({ poles: allPoles, workFeedback, isLoading, error,
                             <select value={landCoverFilter} onChange={event => setLandCoverFilter(event.target.value)}>
                                 <option value="">All land cover types</option>
                                 {landCoverTypes.map(name => <option key={name} value={name}>{name}</option>)}
+                            </select>
+                        </label>
+                        <label>Sort by
+                            <select value={sortOrder} onChange={event => setSortOrder(event.target.value as WorkPackSort)}>
+                                <option value="priority">Priority (highest risk first)</option>
+                                <option value="poleIdAsc">Pole ID ↑ (ascending)</option>
+                                <option value="poleIdDesc">Pole ID ↓ (descending)</option>
                             </select>
                         </label>
                         <button className="reset-filters-button" type="button" onClick={resetFilters} disabled={!hasActiveFilters} aria-label="Reset filters" title="Reset filters">
