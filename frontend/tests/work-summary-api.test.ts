@@ -14,8 +14,8 @@ test('summary endpoint makes one uncached call, normalizes rows and sorts newest
       assert.equal(options?.method, 'POST');
       assert.equal(options?.cache, 'no-store');
       return Response.json({ value: [
-        { cr1da_feederpolesection: ' A ', crf11_trimmingwork: 1, modifiedon: '2026-10-15T00:00:00Z' },
-        { poleId: 'A', trimmingWork: 0, modifiedOn: '2026-10-16T00:00:00Z' },
+        { cr1da_feederpolesection: ' A ', crf11_trimmingwork: 1, aiconfirmedenroachment: 2, modifiedon: '2026-10-15T00:00:00Z' },
+        { poleId: 'A', trimmingWork: 0, aiConfirmedEncroachment: 'AI Correct - vegetation risk confirmed', modifiedOn: '2026-10-16T00:00:00Z' },
       ] });
     };
     await handler({ method: 'GET', query: { fresh: '1' } }, response);
@@ -23,7 +23,9 @@ test('summary endpoint makes one uncached call, normalizes rows and sorts newest
     assert.equal(response.code, 200);
     assert.equal(response.headers['Cache-Control'], 'no-store');
     assert.equal(response.data[0].trimmingWork, 0);
+    assert.equal(response.data[0].aiConfirmedEncroachment, 'AI Correct - vegetation risk confirmed');
     assert.equal(response.data[1].poleId, 'A');
+    assert.equal(response.data[1].aiConfirmedEncroachment, 2);
     globalThis.fetch = async () => Response.json({ value: [], '@odata.nextLink': 'more' });
     await handler({ method: 'GET' }, response);
     assert.equal(response.code, 502);

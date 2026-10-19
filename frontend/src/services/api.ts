@@ -184,6 +184,7 @@ export interface WorkFeedback {
   poleId: string | null;
   trimmingWork: string | null;
   modifiedOn: string | null;
+  aiConfirmedEncroachment?: string | number | null;
 }
 
 const feedbackCache = new Map<string, { expires: number; data: WorkFeedback[] }>();
@@ -427,6 +428,7 @@ export async function saveWorkForm(
 export interface WorkSummary {
   poleId: string;
   trimmingWork: string | number | null;
+  aiConfirmedEncroachment?: string | number | null;
   modifiedOn: string | null;
 }
 
@@ -463,6 +465,7 @@ export function workSummaryLookup(records: WorkSummary[]): Map<string, WorkFeedb
     lookup.set(key, {
       poleId: key,
       trimmingWork: choice?.label ?? (typeof value === "string" ? value : null),
+      aiConfirmedEncroachment: record.aiConfirmedEncroachment ?? null,
       modifiedOn: record.modifiedOn,
     });
   }

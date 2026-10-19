@@ -1,6 +1,8 @@
 import { CriticalityPie } from "../components/executive/ExecutiveCharts";
+import { FieldMultiFilter } from "../components/FieldMultiFilter";
 import { useMemo, useState } from "react";
 import type { Pole, WorkFeedback } from "../services/api";
+import { aiConfirmationCategory, type AiConfirmationCategory } from "../services/workFormResponse";
 import { trimmingWorkStatus } from "../services/trimmingWork";
 import "./ExecutivePage.css";
 
@@ -10,6 +12,11 @@ const colors = ["#ed6477", "#efa94c", "#53b6ed", "#51cba0", "#8896b3"];
 const locationFields = ["state", "zone", "subzone", "station", "substation", "feederId"] as const;
 const labels = ["State", "Zone", "Subzone", "Station", "Substation", "Feeder"];
 const valueOf = (value: string | null | undefined) => value?.trim() || "Unassigned";
+const aiConfirmationItems: { category: AiConfirmationCategory; label: string; color: string }[] = [
+    { category: "correct", label: "AI Correct - vegetation risk confirmed", color: "#51cba0" },
+    { category: "falsePositive", label: "AI False Positive - no vegetation issue found", color: "#ed6477" },
+    { category: "partial", label: "AI Partially Correct - risk exists but severity different", color: "#efa94c" },
+];
 
 function riskOf(pole: Pole) {
     const category = pole.finalAiRiskCategory?.trim().toUpperCase();
@@ -25,6 +32,8 @@ export function ExecutivePage({ poles, workFeedback, isLoading, error, feedbackL
     const [filters, setFilters] = useState<Record<string, string>>({});
     const [search, setSearch] = useState("");
     const [groupBy, setGroupBy] = useState<typeof locationFields[number]>("feederId");
+    const [aiLocationField, setAiLocationField] = useState<typeof locationFields[number]>("station");
+    const [aiLocationFilter, setAiLocationFilter] = useState<string[]>([]);
     const [page, setPage] = useState(1);
     const feedbackUnavailable = feedbackLoading || !!feedbackError;
 
@@ -36,7 +45,15 @@ export function ExecutivePage({ poles, workFeedback, isLoading, error, feedbackL
             const previous = feedback.get(id);
             if (!previous || (Date.parse(item.modifiedOn ?? "") || 0) > (Date.parse(previous.modifiedOn ?? "") || 0)) feedback.set(id, item);
         }
-        return poles.map(pole => ({ pole, risk: riskOf(pole), status: trimmingWorkStatus(feedback.get(pole.poleId?.trim().toLowerCase() ?? "")?.trimmingWork ?? undefined) }));
+        return poles.map(pole => {
+            const item = feedback.get(pole.poleId?.trim().toLowerCase() ?? "");
+            return {
+                pole,
+                risk: riskOf(pole),
+                status: trimmingWorkStatus(item?.trimmingWork ?? undefined),
+                aiConfirmedEncroachment: item?.aiConfirmedEncroachment ?? null,
+            };
+        });
     }, [poles, workFeedback]);
 
     const filtered = rows.filter(row => locationFields.every(field => !filters[field] || valueOf(row.pole[field]) === filters[field])
@@ -56,6 +73,15 @@ export function ExecutivePage({ poles, workFeedback, isLoading, error, feedbackL
     filtered.forEach(({ pole }) => groups.set(valueOf(pole[groupBy]), (groups.get(valueOf(pole[groupBy])) ?? 0) + 1));
 
     const bars = [...groups].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 10).map(([label, count]) => ({ label, count, color: "#53b6ed" }));
+
+    const aiLocationOptions = [...new Set(filtered.map(row => valueOf(row.pole[aiLocationField])))].sort((a, b) => a.localeCompare(b));
+    const aiLocationRows = filtered.filter(row => aiLocationFilter.length === 0 || aiLocationFilter.includes(valueOf(row.pole[aiLocationField])));
+    const aiConfirmationCounts = aiConfirmationItems.map(item => ({
+        label: item.label,
+        count: aiLocationRows.filter(row => aiConfirmationCategory(row.aiConfirmedEncroachment) === item.category).length,
+        color: item.color,
+    }));
+    const aiConfirmationTotal = aiConfirmationCounts.reduce((total, item) => total + item.count, 0);
 
     const packs = new Map<string, { location: string; feeder: string; total: number; completed: number; notApplicable: number; pending: number }>();
     priority.forEach(({ pole, status }) => {
@@ -167,6 +193,26 @@ export function ExecutivePage({ poles, workFeedback, isLoading, error, feedbackL
                                 label, count: priority.filter(row => row.status === label).length, color: ["#51cba0", "#53b6ed", "#efa94c", "#8896b3"][index]
 
                             }))} /></>}
+                    </article>
+
+                    <article className="executive-card">
+                        <div className="executive-chart-heading executive-ai-chart-heading">
+                            <h3>AI Confirmed Enroachment</h3>
+                            <label>Location level
+                                <select aria-label="AI confirmation location level" value={aiLocationField} onChange={event => {
+                                    setAiLocationField(event.target.value as typeof aiLocationField);
+                                    setAiLocationFilter([]);
+                                }}>
+                                    {locationFields.map((field, index) => <option key={field} value={field}>{labels[index]}</option>)}
+                                </select>
+                            </label>
+                        </div>
+                        <div className="executive-ai-location-filter">
+                            <FieldMultiFilter label={`Filter ${labels[locationFields.indexOf(aiLocationField)].toLowerCase()}s`}
+                                allLabel="All locations" options={aiLocationOptions} selected={aiLocationFilter} onChange={setAiLocationFilter} />
+                        </div>
+                        <p>{aiConfirmationTotal.toLocaleString()} recorded responses</p>
+                        <Bars items={aiConfirmationCounts} />
                     </article>
                 </section>
 

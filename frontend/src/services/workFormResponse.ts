@@ -29,6 +29,22 @@ export const workFormChoices: Record<string, { value: number; label: string }[]>
   ],
 };
 
+export type AiConfirmationCategory = "correct" | "partial" | "falsePositive";
+
+export function aiConfirmationCategory(value: unknown): AiConfirmationCategory | null {
+  const numeric = typeof value === "number" ? value
+    : typeof value === "string" && /^\d+$/.test(value.trim()) ? Number(value.trim()) : null;
+  if (numeric === 0) return "correct";
+  if (numeric === 1) return "partial";
+  if (numeric === 2) return "falsePositive";
+  if (typeof value !== "string") return null;
+  const label = value.trim().toLowerCase();
+  if (label.includes("ai partially correct")) return "partial";
+  if (label.includes("ai false positive")) return "falsePositive";
+  if (label.includes("ai correct")) return "correct";
+  return null;
+}
+
 const fieldDefinitions = [
   ['cr1da_feederpolesection', 'Pole ID', 'text'],
   ['cr1da_feederid', 'Feeder ID', 'text'],

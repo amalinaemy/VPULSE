@@ -104,8 +104,11 @@ Set `POWER_AUTOMATE_GET_WORK_SUMMARY_URL` in Vercel Production to the summary
 flow's HTTP trigger URL. The endpoint POSTs `{}` and expects an array (or a
 `value` array) containing `poleId`, `trimmingWork`, and `modifiedOn`. Raw Dataverse
 columns `cr1da_feederpolesection`, `crf11_trimmingwork`, and `modifiedon` are also
-accepted. Enable flow pagination to return every inspection record; order by
-`modifiedon desc`. The API sorts dated records newest first as well.
+accepted. To display AI confirmation totals in the Executive dashboard, include
+`aiconfirmedenroachment` in the flow's Select output, mapped to the Dataverse
+choice value or formatted label. Enable flow pagination to return every
+inspection record; order by `modifiedon desc`. The API sorts dated records newest
+first as well.
 
 Summary responses use `Cache-Control: no-store` and no application cache.
 After saving, React requests the summary once using `fresh=1` and browser

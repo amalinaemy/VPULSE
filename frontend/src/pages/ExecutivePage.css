@@ -101,7 +101,8 @@
     margin-top: 0;
 }
 
-.executive-charts .executive-card:last-child {
+.executive-charts .executive-card:nth-child(3),
+.executive-charts .executive-card:nth-child(4) {
     grid-column: 1 / -1;
 }
 
@@ -122,6 +123,21 @@
     align-items: center;
     justify-content: space-between;
     gap: 16px;
+}
+
+.executive-ai-chart-heading label {
+    flex: 0 1 180px;
+}
+
+.executive-ai-location-filter {
+    max-width: 320px;
+    margin-top: 16px;
+}
+
+.executive-dashboard .executive-ai-location-filter .field-multi-filter summary {
+    background: var(--exec-panel);
+    border-color: var(--exec-border);
+    color: inherit;
 }
 
 .executive-pie-layout {

@@ -23,7 +23,9 @@ export default async function handler(req: any, res: any) {
       if (typeof poleId !== 'string') throw new Error('Missing pole ID');
       const trimmingWork = row.trimmingWork ?? row['crf11_trimmingwork@OData.Community.Display.V1.FormattedValue'] ?? row.crf11_trimmingwork ?? null;
       if (trimmingWork !== null && !['string', 'number'].includes(typeof trimmingWork)) throw new Error('Invalid status');
-      return { poleId: poleId.trim(), trimmingWork, modifiedOn: row.modifiedOn ?? row.modifiedon ?? null };
+      const aiConfirmedEncroachment = row.aiConfirmedEncroachment ?? row.aiconfirmedenroachment ?? row['cr1da_aiconfirmedenroachment@OData.Community.Display.V1.FormattedValue'] ?? row.cr1da_aiconfirmedenroachment ?? null;
+      if (aiConfirmedEncroachment !== null && !['string', 'number'].includes(typeof aiConfirmedEncroachment)) throw new Error('Invalid AI confirmation');
+      return { poleId: poleId.trim(), trimmingWork, aiConfirmedEncroachment, modifiedOn: row.modifiedOn ?? row.modifiedon ?? null };
     }).filter((row: any) => row.poleId);
     const timestamp = (value: unknown) => typeof value === 'string' ? Date.parse(value) || 0 : 0;
     records.sort((a: any, b: any) => timestamp(b.modifiedOn) - timestamp(a.modifiedOn));

@@ -69,7 +69,11 @@ function App() {
             const key = String(record.poleId ?? "").trim().toUpperCase();
             const summary = lookup.get(key);
             if (key && (!summary || !summary.modifiedOn || !record.modifiedOn ||
-                Date.parse(record.modifiedOn) >= Date.parse(summary.modifiedOn))) lookup.set(key, record);
+                Date.parse(record.modifiedOn) >= Date.parse(summary.modifiedOn))) lookup.set(key, {
+                    ...(summary ?? {}),
+                    ...record,
+                    aiConfirmedEncroachment: record.aiConfirmedEncroachment ?? summary?.aiConfirmedEncroachment ?? null,
+                });
         }
         return [...lookup.values()];
     }, [workSummaryByPoleId, formFeedback]);

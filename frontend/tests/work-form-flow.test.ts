@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
 import handler from '../api/work-feedback.ts';
-import { feedbackFromWorkForm, normalizeWorkForm } from '../src/services/workFormResponse.ts';
+import { aiConfirmationCategory, feedbackFromWorkForm, normalizeWorkForm } from '../src/services/workFormResponse.ts';
 
 const row = { cr1da_feederpolesection: 'P1', crf11_trimmingwork: 1,
   'crf11_trimmingwork@OData.Community.Display.V1.FormattedValue': 'Completed',
@@ -88,4 +88,12 @@ test('renamed trimming choice keeps code 1 and displays N/A in forms and feedbac
   assert.equal(legacy.fields[0].options?.find(option => option.value === 1)?.label, 'N/A');
   assert.deepEqual(field.options, [{value: 0, label: 'Completed'}, {value: 1, label: 'N/A'}, {value: 2, label: 'Not Started'}]);
   assert.equal(feedbackFromWorkForm({crf11_trimmingwork: 1, 'crf11_trimmingwork@OData.Community.Display.V1.FormattedValue': 'In Progress'}, 'P1')[0].trimmingWork, 'N/A');
+});
+
+test('AI confirmation numeric codes and labels map to the dashboard categories', () => {
+  assert.equal(aiConfirmationCategory(0), 'correct');
+  assert.equal(aiConfirmationCategory('1'), 'partial');
+  assert.equal(aiConfirmationCategory('AI False Positive - no vegetation issue found'), 'falsePositive');
+  assert.equal(aiConfirmationCategory('unrecognized'), null);
+  assert.equal(aiConfirmationCategory(null), null);
 });
