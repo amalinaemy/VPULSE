@@ -127,7 +127,6 @@ export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
             await saveWorkForm(pole.poleId!, record.id, record.version, changed);
             setSaved(true);
             onClose();
-            // App refreshes the summary once and displays any refresh error on the dashboard.
             await onSaved();
         } catch (error) {
             setError(error instanceof Error ? error.message : "Unable to save the form.");
@@ -184,14 +183,14 @@ export function WorkFormModal({ pole, onClose, onSaved }: WorkFormModalProps) {
                                 </div>
                                 {showAiInfo && <div id="work-ai-guidance" className="work-ai-guidance">
                                     <p><strong>AI correct</strong> <strong>:</strong> vegetation risk confirmed</p>
-                                    <p>AI <strong>Partially correct :</strong></p>
+                                    <p><strong>AI Partially correct :</strong></p>
                                     <ul>
-                                        <li>vegetation within 30m radius</li>
+                                        <li>Vegetation <strong>within 30m radius</strong></li>
                                         <li>Land Cover Type / Risk Category / Recommended Action : At least one is <strong>correct.</strong></li>
                                     </ul>
                                     <p><strong>AI False positive :</strong></p>
                                     <ul>
-                                        <li>vegetation out of 30 m radius</li>
+                                        <li>Vegetation <strong>out of 30 m radius</strong></li>
                                         <li>Land Cover Type, Risk Category, Recommended Action : All are <strong>incorrect.</strong></li>
                                     </ul>
                                 </div>}
